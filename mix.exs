@@ -15,7 +15,12 @@ defmodule AbsintheInitializer.MixProject do
         maintainers: ["Hiram Castillo"],
         links: %{"GitHub" => "https://github.com/hiramcastillo36/absinthe_initializer"}
       ],
-      deps: deps()
+      deps: deps(),
+      name: "AbsintheInitializer",
+      source_url: "https://github.com/hiramcastillo36/absinthe_initializer",
+      docs: [
+        main: "AbsintheInitializer",
+      ]
     ]
   end
 
