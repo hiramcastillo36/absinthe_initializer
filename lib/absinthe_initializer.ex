@@ -65,9 +65,6 @@ defmodule AbsintheInitializer do
       end
     """
 
-
-    router_path = Path.join(["lib", "#{project_name}_web", "router.ex"])
-
     File.cd!(Path.join(["lib", "#{project_name}_web"]))
 
     File.dir?("schema") || File.mkdir!("schema")

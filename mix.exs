@@ -41,6 +41,7 @@ defmodule AbsintheInitializer.MixProject do
   end
 
   def get_project_name do
-    Mix.Project.config()[:app]
+    config = Mix.Project.config()
+    config[:app]
   end
 end
