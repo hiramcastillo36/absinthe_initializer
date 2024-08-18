@@ -9,10 +9,14 @@ defmodule Mix.Tasks.AbsintheInitializer do
   """
 
   @impl Mix.Task
-  def run(_) do
+  def run(args) do
     Mix.shell().info("Starting Absinthe setup...")
 
-    AbsintheInitializer.setup()
+    if(args == ["--auth"]) do
+      AbsintheInitializer.setup(true)
+    else
+      AbsintheInitializer.setup()
+    end
 
     Mix.shell().info("Absinthe setup complete.")
   end
