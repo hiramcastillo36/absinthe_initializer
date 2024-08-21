@@ -3,7 +3,7 @@ defmodule AbsintheInitializer do
   Documentation for `AbsintheInitializer`.
   """
 
-  alias AbsintheInitializer.{MixProject, Schema, Middlewares,}
+  alias AbsintheInitializer.{MixProject, Schema, Middlewares}
   alias AbsintheInitializer.Auth.{Graphql, Resolver, Schema, Migrations, ChangesetErrors}
   alias AbsintheInitializer.Auth.Plug.SetCurrentUser
 
@@ -15,7 +15,7 @@ defmodule AbsintheInitializer do
   end
 
   def setup(with_auth \\ false) do
-    project_name = MixProject.get_project_name() |> Atom.to_string()
+    project_name = AbsintheInitializer.MixProject.get_project_name() |> Atom.to_string()
     project_capitalized = to_camel_case(project_name)
 
     update_mix_exs(with_auth)
