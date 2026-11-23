@@ -22,18 +22,18 @@ jobs:
           elixir-version: "1.18.3"
           otp-version: "27.2"
 
+      - name: Install dependencies
+        run: mix deps.get
+
       - name: Verify tag matches mix.exs version
         run: |
           TAG_VERSION="${GITHUB_REF_NAME#v}"
-          MIX_VERSION=$(mix run --no-start -e 'IO.write(Mix.Project.config()[:version])')
+          MIX_VERSION=$(mix run --no-compile --no-deps-check --no-start -e 'IO.write(Mix.Project.config()[:version])')
           echo "Tag version: $TAG_VERSION | mix.exs version: $MIX_VERSION"
           if [ "$TAG_VERSION" != "$MIX_VERSION" ]; then
             echo "::error::Tag version ($TAG_VERSION) does not match mix.exs version ($MIX_VERSION)"
             exit 1
           fi
-
-      - name: Install dependencies
-        run: mix deps.get
 
       - name: Check formatting
         run: mix format --check-formatted
