@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-23
+
 ### Added
 - GitHub Actions CI workflow (formatting, strict compilation, tests, docs, Hex audit).
 - Automated Hex.pm + HexDocs + GitHub Releases workflow triggered on `v*` tags.
@@ -35,3 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - Updated `README.md` with installation, usage, and generated structure details.
+
+[Unreleased]: https://github.com/hiramcastillo36/absinthe_initializer/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/hiramcastillo36/absinthe_initializer/releases/tag/v0.1.4
