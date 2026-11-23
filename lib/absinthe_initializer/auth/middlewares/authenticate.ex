@@ -23,6 +23,7 @@ defmodule AbsintheInitializer.Middlewares.Authenticate do
       end
     end
     """
+
     authenticate_content
   end
 end

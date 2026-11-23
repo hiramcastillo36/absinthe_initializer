@@ -70,6 +70,7 @@ defmodule AbsintheInitializerTest do
 
       router_content =
         assert_valid_elixir!(Path.join([tmp_dir, "lib", "my_app_web", "router.ex"]))
+
       assert router_content =~ ~s(forward "/api")
       assert router_content =~ ~s(forward "/graphiql")
       assert router_content =~ "schema: MyAppWeb.Schema"
@@ -88,16 +89,15 @@ defmodule AbsintheInitializerTest do
 
       assert changeset_errors =~ "defmodule MyAppWeb.Schema.ChangesetErrors do"
 
+      plug_path = Path.join([tmp_dir, "lib", "my_app_web", "plugs", "set_current_user.ex"])
       refute File.exists?(Path.join([tmp_dir, "lib", "my_app", "accounts.ex"]))
-      refute File.exists?(
-               Path.join([tmp_dir, "lib", "my_app_web", "plugs", "set_current_user.ex"])
-             )
+      refute File.exists?(plug_path)
     end
   end
 
   describe "setup/2 with auth" do
     @tag :tmp_dir
-    test "generates full authentication scaffold with valid Elixir syntax", %{tmp_dir: tmp_dir} do
+    test "generates full auth scaffold with valid Elixir syntax", %{tmp_dir: tmp_dir} do
       scaffold_phoenix_project(tmp_dir)
 
       File.cd!(tmp_dir, fn ->
@@ -109,6 +109,7 @@ defmodule AbsintheInitializerTest do
 
       router_content =
         assert_valid_elixir!(Path.join([tmp_dir, "lib", "my_app_web", "router.ex"]))
+
       assert router_content =~ "plug MyAppWeb.Plugs.SetCurrentUser"
 
       expected_files = [
@@ -133,6 +134,7 @@ defmodule AbsintheInitializerTest do
 
       migrations =
         Path.wildcard(Path.join([tmp_dir, "priv", "repo", "migrations", "*_create_users.exs"]))
+
       assert [migration_path] = migrations
       migration_content = assert_valid_elixir!(migration_path)
       assert migration_content =~ "defmodule MyAppWeb.Migrations.CreateUsers do"

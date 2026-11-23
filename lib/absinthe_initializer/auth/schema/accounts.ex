@@ -416,6 +416,7 @@ defmodule AbsintheInitializer.Auth.Schema.Accounts do
       end
 
     """
+
     project_name = project_name || Macro.underscore(project_capitalized)
     File.write!("lib/#{project_name}/accounts.ex", accounts_content)
   end

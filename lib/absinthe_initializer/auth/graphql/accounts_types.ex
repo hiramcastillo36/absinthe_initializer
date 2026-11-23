@@ -61,6 +61,7 @@ defmodule AbsintheInitializer.Auth.Graphql.AccountsTypes do
     end
 
     """
+
     account_types_content
   end
 end

@@ -29,6 +29,7 @@ defmodule AbsintheInitializer.Auth.ChangesetErrors do
         defp _to_string(val), do: to_string(val)
       end
     """
+
     project_name = project_name || Macro.underscore(project_capitalized)
     dir = Path.join(["lib", "#{project_name}_web", "schema"])
     File.mkdir_p!(dir)

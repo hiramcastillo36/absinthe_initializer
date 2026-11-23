@@ -62,6 +62,7 @@ defmodule AbsintheInitializer.Auth.Resolver.AccountsResolver do
         end
       end
     """
+
     accounts_resolver_content
   end
 end

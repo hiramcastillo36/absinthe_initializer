@@ -24,6 +24,7 @@ defmodule AbsintheInitializer.Auth.Plug.SetCurrentUser do
       end
     end
     """
+
     plug_current_user_content
   end
 end

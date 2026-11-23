@@ -30,6 +30,7 @@ defmodule AbsintheInitializer.Auth.Migrations.UsersMigration do
       end
     end
     """
+
     timestamp =
       NaiveDateTime.utc_now()
       |> NaiveDateTime.to_string()

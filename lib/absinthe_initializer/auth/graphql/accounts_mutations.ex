@@ -91,6 +91,7 @@ defmodule AbsintheInitializer.Auth.Graphql.AccountsMutations do
     end
 
     """
+
     account_mutations_content
   end
 end
