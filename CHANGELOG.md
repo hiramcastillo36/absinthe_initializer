@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Configurable authentication transport via `--auth-transport bearer|cookie|both` (default: `both`), including HttpOnly/SameSite cookie support via Absinthe `before_send` and `Middleware.AuthCookie`.
+- Configurable session caching via `--cache ets|cachex|none` (default: `ets`) with `@behaviour SessionCache`, zero-dependency ETS adapter with TTL cleanup, Cachex adapter, and automatic invalidation on `sign_out`, `sign_out_all`, role updates, user deletion, and password/email changes.
+- Built-in ETS rate limiting (`--rate-limit` / `--no-rate-limit`) for `sign_in` and `sign_up` mutations.
+- Centralized runtime auth configuration (`MyApp.Auth.Config`) injected into `config/config.exs` and supervision tree children injected into `application.ex`.
+- `sign_out_all` GraphQL mutation to revoke all active sessions across devices.
+
+### Changed
+- Migrated all code generators to EEx templates under `priv/templates/` (bundled in Hex package).
+- Resolved `current_user` once in `SetCurrentUser` plug (cache → DB) instead of re-querying in every middleware and resolver.
+- Hashed session tokens with SHA-256 before storing them in `users_tokens`.
+
+### Fixed
+- Removed `:is_admin` from `User.registration_changeset/3` to prevent mass assignment, and added explicit `User.role_changeset/2`.
+- Protected `me`, `sign_out`, and `sign_out_all` with `Middleware.Authenticate`.
+- Added missing mailer functions to `UserNotifier`.
+
 ## [0.1.4] - 2026-11-23
 
 ### Added

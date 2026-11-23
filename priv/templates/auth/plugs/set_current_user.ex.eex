@@ -1,0 +1,74 @@
+defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
+  @moduledoc """
+  Plug that extracts the session token (from Bearer header and/or HttpOnly cookie
+  depending on `<%= @app_module %>.Auth.Config.transport/0`), resolves `current_user`
+  once (via cache or database), and populates the Absinthe context.
+  """
+
+  @behaviour Plug
+
+  import Plug.Conn
+
+  alias <%= @app_module %>.Accounts
+  alias <%= @app_module %>.Auth.Config
+
+  @impl Plug
+  def init(opts), do: opts
+
+  @impl Plug
+  def call(conn, _opts) do
+    conn = if Config.cookies_enabled?(), do: fetch_cookies(conn), else: conn
+    context = build_context(conn)
+    Absinthe.Plug.put_options(conn, context: context)
+  end
+
+  defp build_context(conn) do
+    base = %{remote_ip: extract_remote_ip(conn)}
+
+    case extract_token(conn) do
+      {:ok, token} ->
+        case Accounts.get_user_by_session_token(token) do
+          nil -> base
+          user -> Map.merge(base, %{current_user: user, token: token})
+        end
+
+      :error ->
+        base
+    end
+  end
+
+  defp extract_token(conn) do
+    case Config.transport() do
+      :bearer -> extract_bearer_token(conn)
+      :cookie -> extract_cookie_token(conn)
+      :both -> extract_bearer_token(conn) |> fallback_to_cookie(conn)
+    end
+  end
+
+  defp fallback_to_cookie({:ok, _} = result, _conn), do: result
+  defp fallback_to_cookie(:error, conn), do: extract_cookie_token(conn)
+
+  defp extract_bearer_token(conn) do
+    case get_req_header(conn, "authorization") do
+      ["Bearer " <> token] when byte_size(token) > 0 -> {:ok, token}
+      _ -> :error
+    end
+  end
+
+  defp extract_cookie_token(conn) do
+    case Map.get(conn.cookies, Config.cookie_name()) do
+      token when is_binary(token) and byte_size(token) > 0 -> {:ok, token}
+      _ -> :error
+    end
+  end
+
+  defp extract_remote_ip(conn) do
+    case get_req_header(conn, "x-forwarded-for") do
+      [forwarded | _] ->
+        forwarded |> String.split(",") |> List.first() |> String.trim()
+
+      [] ->
+        conn.remote_ip |> :inet.ntoa() |> to_string()
+    end
+  end
+end

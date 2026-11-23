@@ -1,0 +1,28 @@
+defmodule <%= @app_module %>Web.Plugs.AuthCookie do
+  @moduledoc """
+  Absinthe `before_send` callback that sets or clears the HttpOnly session cookie
+  based on `:auth_cookie` entries placed in the execution context by auth mutations.
+  """
+
+  import Plug.Conn
+
+  alias <%= @app_module %>.Auth.Config
+
+  def before_send(conn, %Absinthe.Blueprint{execution: %{context: %{auth_cookie: {:put, token}}}}) do
+    if Config.cookies_enabled?() do
+      put_resp_cookie(conn, Config.cookie_name(), token, Config.cookie_opts())
+    else
+      conn
+    end
+  end
+
+  def before_send(conn, %Absinthe.Blueprint{execution: %{context: %{auth_cookie: :delete}}}) do
+    if Config.cookies_enabled?() do
+      delete_resp_cookie(conn, Config.cookie_name(), Config.cookie_opts())
+    else
+      conn
+    end
+  end
+
+  def before_send(conn, _blueprint), do: conn
+end

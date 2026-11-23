@@ -1,0 +1,46 @@
+defmodule <%= @app_module %>Web.Resolvers.Accounts do
+  @moduledoc """
+  GraphQL resolvers for account registration, authentication, and session management.
+  """
+
+  alias <%= @app_module %>.Accounts
+  alias <%= @app_module %>Web.Schema.ChangesetErrors
+
+  def me(_parent, _args, %{context: %{current_user: user}}) do
+    {:ok, user}
+  end
+
+  def sign_up(_parent, %{email: email, password: password}, _resolution) do
+    case Accounts.register_user(%{email: email, password: password}) do
+      {:ok, user} ->
+        token = Accounts.generate_user_session_token(user)
+        {:ok, %{user: user, token: token}}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error,
+         message: "Could not create account.",
+         details: ChangesetErrors.error_details(changeset)}
+    end
+  end
+
+  def sign_in(_parent, %{email: email, password: password}, _resolution) do
+    case Accounts.get_user_by_email_and_password(email, password) do
+      nil ->
+        {:error, message: "Invalid email or password."}
+
+      user ->
+        token = Accounts.generate_user_session_token(user)
+        {:ok, %{user: user, token: token}}
+    end
+  end
+
+  def sign_out(_parent, _args, %{context: %{token: token}}) do
+    Accounts.delete_user_session_token(token)
+    {:ok, %{message: "Signed out successfully."}}
+  end
+
+  def sign_out_all(_parent, _args, %{context: %{current_user: user}}) do
+    Accounts.delete_all_user_session_tokens(user)
+    {:ok, %{message: "All sessions revoked."}}
+  end
+end

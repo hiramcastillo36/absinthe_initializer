@@ -1,0 +1,30 @@
+defmodule <%= @app_module %>Web.Schema.ChangesetErrors do
+  @moduledoc """
+  Helpers for formatting Ecto.Changeset errors for GraphQL responses.
+  """
+
+  @doc """
+  Traverses the changeset errors and returns a map of error messages.
+
+  ## Example
+
+      %{email: ["can't be blank"]}
+  """
+  def error_details(changeset) do
+    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+      Enum.reduce(opts, msg, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", format_value(value))
+      end)
+    end)
+  end
+
+  defp format_value(val) when is_list(val) do
+    case Enum.reverse(val) do
+      [only] -> to_string(only)
+      [last | rest] -> "#{rest |> Enum.reverse() |> Enum.join(", ")}, and #{last}"
+      [] -> ""
+    end
+  end
+
+  defp format_value(val), do: to_string(val)
+end

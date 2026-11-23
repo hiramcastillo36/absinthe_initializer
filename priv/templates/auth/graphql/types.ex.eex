@@ -1,0 +1,26 @@
+defmodule <%= @app_module %>Web.Schema.Context.Accounts.Types do
+  @moduledoc """
+  GraphQL types for user accounts and authentication sessions.
+  """
+
+  use Absinthe.Schema.Notation
+
+  @desc "User authentication session returned on sign up and sign in."
+  object :session do
+    field :user, non_null(:user)
+    field :token, :string
+  end
+
+  @desc "Result returned after revoking one or all user sessions."
+  object :sign_out_result do
+    field :message, non_null(:string)
+  end
+
+  @desc "Authenticated user account."
+  object :user do
+    field :id, non_null(:id)
+    field :email, non_null(:string)
+    field :is_admin, non_null(:boolean)
+    field :inserted_at, :naive_datetime
+  end
+end
