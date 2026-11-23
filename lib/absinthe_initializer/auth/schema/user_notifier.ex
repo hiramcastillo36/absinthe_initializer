@@ -1,5 +1,5 @@
 defmodule AbsintheInitializer.Auth.Schema.UserNotifier do
-  def generate_user_notifier(project_capitalized) do
+  def generate_user_notifier(project_capitalized, project_name \\ nil) do
     user_notifier_content = """
       defmodule #{project_capitalized}.Accounts.UserNotifier do
         import Swoosh.Email
@@ -22,7 +22,7 @@ defmodule AbsintheInitializer.Auth.Schema.UserNotifier do
       end
     """
 
-    project_name = String.downcase(project_capitalized)
-    File.write("lib/#{project_name}/accounts/user_notifier.ex", user_notifier_content)
+    project_name = project_name || Macro.underscore(project_capitalized)
+    File.write!("lib/#{project_name}/accounts/user_notifier.ex", user_notifier_content)
   end
 end

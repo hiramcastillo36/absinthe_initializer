@@ -30,7 +30,14 @@ defmodule AbsintheInitializer.Auth.Migrations.UsersMigration do
       end
     end
     """
-    timestamp = NaiveDateTime.utc_now() |> NaiveDateTime.to_string() |> String.slice(0..18) |> String.replace(["-", ":", ".", " "], "")
+
+    timestamp =
+      NaiveDateTime.utc_now()
+      |> NaiveDateTime.to_string()
+      |> String.slice(0..18)
+      |> String.replace(["-", ":", ".", " "], "")
+
+    File.mkdir_p!("priv/repo/migrations")
     File.write!("priv/repo/migrations/#{timestamp}_create_users.exs", migration_content)
   end
 end

@@ -1,5 +1,5 @@
 defmodule AbsintheInitializer.Auth.Schema.UserToken do
-  def generate_user_token(project_capitalized) do
+  def generate_user_token(project_capitalized, project_name \\ nil) do
     user_token_content = """
       defmodule #{project_capitalized}.Accounts.UserToken do
         use Ecto.Schema
@@ -183,7 +183,7 @@ defmodule AbsintheInitializer.Auth.Schema.UserToken do
 
     """
 
-    project_name = String.downcase(project_capitalized)
+    project_name = project_name || Macro.underscore(project_capitalized)
     File.write!("lib/#{project_name}/accounts/user_token.ex", user_token_content)
   end
 end

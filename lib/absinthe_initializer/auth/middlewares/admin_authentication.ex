@@ -28,6 +28,7 @@ defmodule AbsintheInitializer.Middlewares.AdminAuthentication do
       end
     end
     """
+
     authenticate_content
   end
 end

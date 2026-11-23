@@ -33,6 +33,7 @@ defmodule AbsintheInitializer.Auth.Graphql.AccountsQueries do
     end
 
     """
+
     account_queries_content
   end
 end

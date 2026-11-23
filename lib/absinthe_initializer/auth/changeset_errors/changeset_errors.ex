@@ -1,5 +1,5 @@
 defmodule AbsintheInitializer.Auth.ChangesetErrors do
-  def generate_file(project_capitalized) do
+  def generate_file(project_capitalized, project_name \\ nil) do
     changeset_errors_content = """
       defmodule #{project_capitalized}Web.Schema.ChangesetErrors do
         @doc \"\"\"
@@ -29,7 +29,10 @@ defmodule AbsintheInitializer.Auth.ChangesetErrors do
         defp _to_string(val), do: to_string(val)
       end
     """
-    project_name = String.downcase(project_capitalized)
-    File.write("lib/#{project_name}_web/schema/changeset_errors.ex", changeset_errors_content)
+
+    project_name = project_name || Macro.underscore(project_capitalized)
+    dir = Path.join(["lib", "#{project_name}_web", "schema"])
+    File.mkdir_p!(dir)
+    File.write!(Path.join(dir, "changeset_errors.ex"), changeset_errors_content)
   end
 end
