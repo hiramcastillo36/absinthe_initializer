@@ -16,6 +16,25 @@ defmodule <%= @app_module %>.Auth.RateLimiter do
   end
 
   @doc """
+  Returns `true` if `bucket` has already exceeded `max_requests` in the current window
+  without incrementing the counter.
+  """
+  def blocked?(bucket, max_requests, window_seconds)
+      when is_integer(max_requests) and is_integer(window_seconds) do
+    if :ets.whereis(@table) == :undefined do
+      false
+    else
+      now = System.monotonic_time(:second)
+      key = {bucket, div(now, window_seconds)}
+
+      case :ets.lookup(@table, key) do
+        [{^key, count, _expires_at}] -> count >= max_requests
+        [] -> false
+      end
+    end
+  end
+
+  @doc """
   Checks whether a request for `bucket` is within `max_requests` per `window_seconds`.
   Returns `:ok` or `{:error, :rate_limited}`.
   """

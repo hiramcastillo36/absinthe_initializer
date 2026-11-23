@@ -196,6 +196,18 @@ defmodule AbsintheInitializerTest do
         File.read!(Path.join([tmp_dir, "lib", "my_app", "accounts", "user_token.ex"]))
 
       assert token_content =~ ":crypto.hash(@hash_algorithm, raw_token)"
+      assert token_content =~ "byte_size(raw_token) == @rand_size"
+
+      plug_content = File.read!(Path.join(tmp_dir, "lib/my_app_web/plugs/set_current_user.ex"))
+      assert plug_content =~ "invalid_token_blocked?"
+      assert plug_content =~ ":auth_error"
+      assert plug_content =~ "maybe_clear_cookie"
+
+      auth_mw_path = Path.join(tmp_dir, "lib/my_app_web/schema/middleware/authenticate.ex")
+      auth_mw = File.read!(auth_mw_path)
+
+      assert auth_mw =~ "The session is invalid or expired."
+      assert auth_mw =~ "Too many invalid token attempts."
 
       mutations_path = Path.join(tmp_dir, "lib/my_app_web/schema/context/accounts/mutations.ex")
       mutations_content = File.read!(mutations_path)

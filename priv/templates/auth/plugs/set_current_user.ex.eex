@@ -2,7 +2,8 @@ defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
   @moduledoc """
   Plug that extracts the session token (from Bearer header and/or HttpOnly cookie
   depending on `<%= @app_module %>.Auth.Config.transport/0`), resolves `current_user`
-  once (via cache or database), and populates the Absinthe context.
+  once (via cache or database), blocks invalid token spraying, and populates the
+  Absinthe context.
   """
 
   @behaviour Plug
@@ -11,7 +12,8 @@ defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
 
   alias <%= @app_module %>.Accounts
   alias <%= @app_module %>.Auth.Config
-
+<%= if @rate_limit do %>  alias <%= @app_module %>.Auth.RateLimiter
+<% end %>
   @impl Plug
   def init(opts), do: opts
 
@@ -23,20 +25,77 @@ defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
   end
 
   defp build_context(conn) do
-    base = %{remote_ip: extract_remote_ip(conn)}
+    remote_ip = extract_remote_ip(conn)
+    base = %{remote_ip: remote_ip}
 
     case extract_token(conn) do
-      {:ok, token} ->
-        case Accounts.get_user_by_session_token(token) do
-          nil -> base
-          user -> Map.merge(base, %{current_user: user, token: token})
-        end
+      {:ok, source, token} ->
+        resolve_token_context(base, remote_ip, source, token)
 
       :error ->
         base
     end
   end
 
+  defp resolve_token_context(base, remote_ip, source, token) do
+    if invalid_token_blocked?(remote_ip) do
+      base
+      |> Map.put(:auth_error, :rate_limited)
+      |> maybe_clear_cookie(source)
+    else
+      case Accounts.get_user_by_session_token(token) do
+        nil ->
+          auth_error = record_invalid_token_attempt(remote_ip)
+
+          base
+          |> Map.put(:auth_error, auth_error)
+          |> maybe_clear_cookie(source)
+
+        user ->
+          Map.merge(base, %{current_user: user, token: token})
+      end
+    end
+  end
+
+  defp maybe_clear_cookie(context, :cookie) do
+    if Config.cookies_enabled?() do
+      Map.put(context, :auth_cookie, :delete)
+    else
+      context
+    end
+  end
+
+  defp maybe_clear_cookie(context, _source), do: context
+
+<%= if @rate_limit do %>  defp invalid_token_blocked?(remote_ip) do
+    if Config.rate_limit_enabled?() do
+      RateLimiter.blocked?(
+        {:invalid_token, remote_ip},
+        Config.rate_limit_invalid_token_max_requests(),
+        Config.rate_limit_window_seconds()
+      )
+    else
+      false
+    end
+  end
+
+  defp record_invalid_token_attempt(remote_ip) do
+    if Config.rate_limit_enabled?() do
+      case RateLimiter.check_rate(
+             {:invalid_token, remote_ip},
+             Config.rate_limit_invalid_token_max_requests(),
+             Config.rate_limit_window_seconds()
+           ) do
+        :ok -> :invalid_token
+        {:error, :rate_limited} -> :rate_limited
+      end
+    else
+      :invalid_token
+    end
+  end
+<% else %>  defp invalid_token_blocked?(_remote_ip), do: false
+  defp record_invalid_token_attempt(_remote_ip), do: :invalid_token
+<% end %>
   defp extract_token(conn) do
     case Config.transport() do
       :bearer -> extract_bearer_token(conn)
@@ -45,19 +104,19 @@ defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
     end
   end
 
-  defp fallback_to_cookie({:ok, _} = result, _conn), do: result
+  defp fallback_to_cookie({:ok, _, _} = result, _conn), do: result
   defp fallback_to_cookie(:error, conn), do: extract_cookie_token(conn)
 
   defp extract_bearer_token(conn) do
     case get_req_header(conn, "authorization") do
-      ["Bearer " <> token] when byte_size(token) > 0 -> {:ok, token}
+      ["Bearer " <> token] when byte_size(token) > 0 -> {:ok, :bearer, token}
       _ -> :error
     end
   end
 
   defp extract_cookie_token(conn) do
     case Map.get(conn.cookies, Config.cookie_name()) do
-      token when is_binary(token) and byte_size(token) > 0 -> {:ok, token}
+      token when is_binary(token) and byte_size(token) > 0 -> {:ok, :cookie, token}
       _ -> :error
     end
   end

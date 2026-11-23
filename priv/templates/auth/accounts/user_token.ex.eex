@@ -33,12 +33,16 @@ defmodule <%= @app_module %>.Accounts.UserToken do
   end
 
   @doc """
-  Hashes an incoming encoded session token for lookup or revocation.
+  Validates decoded token byte size (`#{@rand_size}` bytes) and returns its SHA-256 hash
+  for lookup or revocation. Rejects malformed tokens in memory without touching the database.
   """
   def hash_session_token(encoded_token) when is_binary(encoded_token) do
     case Base.url_decode64(encoded_token, padding: false) do
-      {:ok, raw_token} -> {:ok, :crypto.hash(@hash_algorithm, raw_token)}
-      :error -> :error
+      {:ok, raw_token} when byte_size(raw_token) == @rand_size ->
+        {:ok, :crypto.hash(@hash_algorithm, raw_token)}
+
+      _ ->
+        :error
     end
   end
 

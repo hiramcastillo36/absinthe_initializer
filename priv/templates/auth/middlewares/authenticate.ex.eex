@@ -1,6 +1,7 @@
 defmodule <%= @app_module %>Web.Schema.Middleware.Authenticate do
   @moduledoc """
-  Absinthe middleware that ensures a valid `current_user` is present in the GraphQL context.
+  Absinthe middleware that ensures a valid `current_user` is present in the GraphQL context
+  and returns distinct errors for missing, invalid/expired, or rate-limited session tokens.
   """
 
   @behaviour Absinthe.Middleware
@@ -10,6 +11,17 @@ defmodule <%= @app_module %>Web.Schema.Middleware.Authenticate do
   @impl Absinthe.Middleware
   def call(%{context: %{current_user: %User{}}} = resolution, _opts) do
     resolution
+  end
+
+  def call(%{context: %{auth_error: :rate_limited}} = resolution, _opts) do
+    Absinthe.Resolution.put_result(
+      resolution,
+      {:error, "Too many invalid token attempts. Please try again later."}
+    )
+  end
+
+  def call(%{context: %{auth_error: :invalid_token}} = resolution, _opts) do
+    Absinthe.Resolution.put_result(resolution, {:error, "The session is invalid or expired."})
   end
 
   def call(resolution, _opts) do

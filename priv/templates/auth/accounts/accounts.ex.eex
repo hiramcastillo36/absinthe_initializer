@@ -137,21 +137,26 @@ defmodule <%= @app_module %>.Accounts do
   end
 
   @doc """
-  Gets the user for an encoded session token, checking the configured session cache first.
+  Gets the user for an encoded session token, rejecting malformed tokens in memory
+  before checking the configured session cache or database.
   """
   def get_user_by_session_token(encoded_token) when is_binary(encoded_token) do
-    case SessionCache.get(encoded_token) do
-      {:ok, %User{} = user} ->
-        user
-
-      :miss ->
-        with {:ok, query} <- UserToken.verify_session_token_query(encoded_token),
-             %User{} = user <- Repo.one(query) do
-          SessionCache.put(encoded_token, user)
+    with {:ok, _hashed_token} <- UserToken.hash_session_token(encoded_token) do
+      case SessionCache.get(encoded_token) do
+        {:ok, %User{} = user} ->
           user
-        else
-          _ -> nil
-        end
+
+        :miss ->
+          with {:ok, query} <- UserToken.verify_session_token_query(encoded_token),
+               %User{} = user <- Repo.one(query) do
+            SessionCache.put(encoded_token, user)
+            user
+          else
+            _ -> nil
+          end
+      end
+    else
+      :error -> nil
     end
   end
 

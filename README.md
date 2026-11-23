@@ -16,7 +16,8 @@
   - **Configurable session cache (`--cache ets|cachex|none`):** `@behaviour SessionCache` with a zero-dependency ETS adapter (with TTL & cleanup) or Cachex, plus instant cache invalidation on `sign_out`, `sign_out_all`, and password changes.
   - **SHA-256 hashed session tokens in DB:** raw tokens are never stored in PostgreSQL.
   - **Single user lookup per request:** `SetCurrentUser` resolves `current_user` once (cache → DB) into the Absinthe context.
-  - **Built-in ETS rate limiting (`--rate-limit` / `--no-rate-limit`):** protects `sign_in` and `sign_up` against brute-force attacks with zero extra dependencies.
+  - **Built-in ETS rate limiting (`--rate-limit` / `--no-rate-limit`):** protects `sign_in`, `sign_up`, and invalid session token spraying against brute-force attacks with zero extra dependencies.
+  - **Invalid token hardening:** rejects malformed tokens in memory before touching cache/DB, returns distinct errors for missing vs invalid/expired vs rate-limited tokens, and automatically clears invalid/expired cookies.
   - **Centralized runtime configuration** in `config/config.exs` + automatic supervision tree wiring in `application.ex`.
 
 ## Installation

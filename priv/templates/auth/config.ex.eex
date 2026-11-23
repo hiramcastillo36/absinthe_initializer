@@ -78,4 +78,8 @@ defmodule <%= @app_module %>.Auth.Config do
   def rate_limit_window_seconds do
     Keyword.get(rate_limit_config(), :window_seconds, 60)
   end
+
+  def rate_limit_invalid_token_max_requests do
+    Keyword.get(rate_limit_config(), :invalid_token_max_requests, 20)
+  end
 end
