@@ -27,6 +27,7 @@ jobs:
             otp: "27.2"
           - elixir: "1.18.3"
             otp: "27.2"
+            coverage: true
 
     env:
       MIX_ENV: test
@@ -57,7 +58,36 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run tests
+        if: ${{ !matrix.coverage }}
         run: mix test
+
+      - name: Run tests with coverage
+        if: ${{ matrix.coverage }}
+        shell: bash
+        run: |
+          set -o pipefail
+          mix test --cover | tee /tmp/coverage.txt
+
+      - name: Publish coverage summary
+        if: ${{ always() && matrix.coverage }}
+        shell: bash
+        run: |
+          if [ -f /tmp/coverage.txt ]; then
+            {
+              echo "### Test Coverage (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})"
+              echo '```text'
+              awk '/Percentage \| Module/,0' /tmp/coverage.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload HTML coverage report
+        if: ${{ always() && matrix.coverage }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: cover/
+          retention-days: 14
 
   quality:
     name: Format, Audit & Docs

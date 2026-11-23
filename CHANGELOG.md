@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Test coverage enforcement (`mix test --cover` with a 90% threshold in `mix.exs`), GitHub Actions coverage summary, and HTML report artifact.
+- Additional tests for `Mix.Tasks.AbsintheInitializer` (`run/1`) and error handling paths.
+
 ## [0.1.4] - 2026-11-23
 
 ### Added

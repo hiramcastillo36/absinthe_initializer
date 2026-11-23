@@ -14,6 +14,7 @@ defmodule AbsintheInitializer.MixProject do
         "A Mix task that automates setting up Absinthe GraphQL (with optional authentication) in Phoenix projects.",
       package: package(),
       deps: deps(),
+      test_coverage: [summary: [threshold: 90]],
       name: "AbsintheInitializer",
       source_url: @source_url,
       docs: docs()

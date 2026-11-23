@@ -36,10 +36,10 @@ defmodule AbsintheInitializerTest do
   end
   """
 
-  defp scaffold_phoenix_project(tmp_dir) do
+  defp scaffold_phoenix_project(tmp_dir, app_name \\ "my_app") do
     File.write!(Path.join(tmp_dir, "mix.exs"), @sample_mix_exs)
 
-    router_dir = Path.join([tmp_dir, "lib", "my_app_web"])
+    router_dir = Path.join([tmp_dir, "lib", "#{app_name}_web"])
     File.mkdir_p!(router_dir)
     File.write!(Path.join(router_dir, "router.ex"), @sample_router_ex)
   end
@@ -141,11 +141,78 @@ defmodule AbsintheInitializerTest do
     end
   end
 
+  describe "setup/2 error handling" do
+    @tag :tmp_dir
+    test "raises when mix.exs is missing the deps section", %{tmp_dir: tmp_dir} do
+      scaffold_phoenix_project(tmp_dir)
+      File.write!(Path.join(tmp_dir, "mix.exs"), "defmodule Empty do\nend\n")
+
+      File.cd!(tmp_dir, fn ->
+        assert_raise RuntimeError, ~r/Could not find dependencies section in mix.exs/, fn ->
+          AbsintheInitializer.setup(false, app: :my_app)
+        end
+      end)
+    end
+
+    @tag :tmp_dir
+    test "raises when router.ex is missing the api pipeline marker", %{tmp_dir: tmp_dir} do
+      scaffold_phoenix_project(tmp_dir)
+
+      File.write!(
+        Path.join([tmp_dir, "lib", "my_app_web", "router.ex"]),
+        "defmodule MyAppWeb.Router do\nend\n"
+      )
+
+      File.cd!(tmp_dir, fn ->
+        assert_raise RuntimeError, ~r/Could not find route section in router.ex/, fn ->
+          AbsintheInitializer.setup(false, app: :my_app)
+        end
+      end)
+    end
+  end
+
   describe "Mix.Tasks.AbsintheInitializer" do
+    setup do
+      previous_shell = Mix.shell()
+      Mix.shell(Mix.Shell.Process)
+      on_exit(fn -> Mix.shell(previous_shell) end)
+      :ok
+    end
+
     test "raises on unsupported CLI flags" do
       assert_raise Mix.Error, ~r/Invalid option\(s\): --unknown/, fn ->
         Mix.Tasks.AbsintheInitializer.run(["--unknown"])
       end
+    end
+
+    @tag :tmp_dir
+    test "runs basic setup via Mix task", %{tmp_dir: tmp_dir} do
+      scaffold_phoenix_project(tmp_dir, "absinthe_initializer")
+
+      File.cd!(tmp_dir, fn ->
+        Mix.Tasks.AbsintheInitializer.run([])
+      end)
+
+      assert_received {:mix_shell, :info, ["Starting Absinthe setup..."]}
+      assert_received {:mix_shell, :info, ["Absinthe setup complete."]}
+
+      path = Path.join([tmp_dir, "lib", "absinthe_initializer_web", "schema", "schema.ex"])
+      assert_valid_elixir!(path)
+    end
+
+    @tag :tmp_dir
+    test "runs auth setup via Mix task with --auth", %{tmp_dir: tmp_dir} do
+      scaffold_phoenix_project(tmp_dir, "absinthe_initializer")
+
+      File.cd!(tmp_dir, fn ->
+        Mix.Tasks.AbsintheInitializer.run(["--auth"])
+      end)
+
+      assert_received {:mix_shell, :info, ["Starting Absinthe setup..."]}
+      assert_received {:mix_shell, :info, ["Absinthe setup complete."]}
+
+      accounts_path = Path.join([tmp_dir, "lib", "absinthe_initializer", "accounts.ex"])
+      assert_valid_elixir!(accounts_path)
     end
   end
 end
