@@ -21,7 +21,7 @@ To install `AbsintheInitializer`, add the following dependency to your Phoenix p
 ```elixir
 defp deps do
   [
-    {:absinthe_initializer, "~> 0.1.3", only: :dev, runtime: false}
+    {:absinthe_initializer, "~> 0.1.4", only: :dev, runtime: false}
   ]
 end
 ```
