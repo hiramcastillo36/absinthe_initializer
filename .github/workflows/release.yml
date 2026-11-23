@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Publish to Hex.pm & GitHub Releases
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir and Erlang
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.18.3"
+          otp-version: "27.2"
+
+      - name: Verify tag matches mix.exs version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          MIX_VERSION=$(mix run --no-start -e 'IO.write(Mix.Project.config()[:version])')
+          echo "Tag version: $TAG_VERSION | mix.exs version: $MIX_VERSION"
+          if [ "$TAG_VERSION" != "$MIX_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) does not match mix.exs version ($MIX_VERSION)"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile and run tests
+        env:
+          MIX_ENV: test
+        run: |
+          mix compile --warnings-as-errors
+          mix test
+
+      - name: Build documentation
+        run: mix docs --warnings-as-errors
+
+      - name: Publish package and docs to Hex.pm
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: |
+          if [ -z "$HEX_API_KEY" ]; then
+            echo "::error::HEX_API_KEY secret is not configured in GitHub repository settings."
+            exit 1
+          fi
+          mix hex.publish --yes
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true

@@ -13,7 +13,8 @@ defmodule AbsintheInitializer.Schema do
           end
         end
       end
-      """
+    """
+
     schema_content
   end
 
@@ -40,6 +41,7 @@ defmodule AbsintheInitializer.Schema do
       end
     end
     """
-  schema_content
+
+    schema_content
   end
 end

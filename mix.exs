@@ -1,47 +1,55 @@
 defmodule AbsintheInitializer.MixProject do
   use Mix.Project
 
+  @version "0.1.3"
+  @source_url "https://github.com/hiramcastillo36/absinthe_initializer"
+
   def project do
     [
       app: :absinthe_initializer,
-      version: "0.1.3",
+      version: @version,
       elixir: "~> 1.16",
       start_permanent: Mix.env() == :prod,
-      build_embedded: Mix.env() == :prod,
-      start_permanent: Mix.env() == :prod,
-      description: "An Absinthe initializer",
-      package: [
-        licenses: ["MIT"],
-        maintainers: ["Hiram Castillo"],
-        links: %{"GitHub" => "https://github.com/hiramcastillo36/absinthe_initializer"}
-      ],
+      description:
+        "A Mix task that automates setting up Absinthe GraphQL (with optional authentication) in Phoenix projects.",
+      package: package(),
       deps: deps(),
       name: "AbsintheInitializer",
-      source_url: "https://github.com/hiramcastillo36/absinthe_initializer",
-      docs: [
-        main: "AbsintheInitializer",
-      ]
+      source_url: @source_url,
+      docs: docs()
     ]
   end
 
-  # Run "mix help compile.app" to learn about applications.
   def application do
     [
       extra_applications: [:logger]
     ]
   end
 
-  # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-      {:ex_doc, "~> 0.24"}
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
     ]
   end
 
-  def get_project_name do
-    config = Mix.Project.config()
-    config[:app]
+  defp package do
+    [
+      licenses: ["MIT"],
+      maintainers: ["Hiram Castillo"],
+      links: %{
+        "GitHub" => @source_url,
+        "Changelog" => "#{@source_url}/blob/master/CHANGELOG.md"
+      },
+      files: ~w(lib .formatter.exs mix.exs README.md CHANGELOG.md LICENSE)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      source_ref: "v#{@version}",
+      source_url: @source_url,
+      extras: ["README.md", "CHANGELOG.md", "LICENSE"]
+    ]
   end
 end

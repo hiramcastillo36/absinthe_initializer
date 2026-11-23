@@ -1,5 +1,5 @@
 defmodule AbsintheInitializer.Auth.Schema.Accounts do
-  def generate_accounts_file(project_capitalized) do
+  def generate_accounts_file(project_capitalized, project_name \\ nil) do
     accounts_content = """
       defmodule #{project_capitalized}.Accounts do
         @moduledoc \"\"\"
@@ -416,7 +416,7 @@ defmodule AbsintheInitializer.Auth.Schema.Accounts do
       end
 
     """
-    project_name = String.downcase(project_capitalized)
-    File.write("lib/#{project_name}/accounts.ex", accounts_content)
+    project_name = project_name || Macro.underscore(project_capitalized)
+    File.write!("lib/#{project_name}/accounts.ex", accounts_content)
   end
 end

@@ -1,5 +1,10 @@
 # AbsintheInitializer
 
+[![CI](https://github.com/hiramcastillo36/absinthe_initializer/actions/workflows/ci.yml/badge.svg)](https://github.com/hiramcastillo36/absinthe_initializer/actions/workflows/ci.yml)
+[![Hex.pm](https://img.shields.io/hexpm/v/absinthe_initializer.svg)](https://hex.pm/packages/absinthe_initializer)
+[![HexDocs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/absinthe_initializer)
+[![License: MIT](https://img.shields.io/hexpm/l/absinthe_initializer.svg)](LICENSE)
+
 `AbsintheInitializer` is a Mix task that automates the setup of a GraphQL API using Absinthe in your Phoenix project. This tool simplifies the process of configuring Absinthe, routing, and optionally setting up authentication, allowing you to focus on developing your GraphQL API quickly.
 
 ## Features
@@ -16,7 +21,7 @@ To install `AbsintheInitializer`, add the following dependency to your Phoenix p
 ```elixir
 defp deps do
   [
-    {:absinthe_initializer, "~> 0.1.0"}
+    {:absinthe_initializer, "~> 0.1.3", only: :dev, runtime: false}
   ]
 end
 ```

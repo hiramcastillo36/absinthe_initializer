@@ -1,5 +1,5 @@
 defmodule AbsintheInitializer.Auth.Schema.User do
-  def generate_user_schema(project_capitalized) do
+  def generate_user_schema(project_capitalized, project_name \\ nil) do
     user_schema_content = """
     defmodule #{project_capitalized}.Accounts.User do
       use Ecto.Schema
@@ -162,7 +162,7 @@ defmodule AbsintheInitializer.Auth.Schema.User do
     end
     """
 
-    project_name = String.downcase(project_capitalized)
+    project_name = project_name || Macro.underscore(project_capitalized)
     File.write!("lib/#{project_name}/accounts/user.ex", user_schema_content)
   end
 end
