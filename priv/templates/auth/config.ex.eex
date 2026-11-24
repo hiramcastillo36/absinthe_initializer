@@ -7,7 +7,15 @@ defmodule <%= @app_module %>.Auth.Config do
       config :<%= @app_name %>, <%= @app_module %>.Auth,
         transport: <%= inspect(@auth_transport) %>,
         cookie_name: "_<%= @app_name %>_session",
-        cookie_opts: [http_only: true, secure: true, same_site: "Lax", max_age: 604_800],
+        cookie_opts: [
+          http_only: true,
+          secure: true,
+          same_site: "Lax",
+          path: "/",
+          max_age: 604_800
+        ],
+        csrf_protection: true,
+        trust_proxy: false,
         session_ttl_days: 7,
         cache: <%= inspect(@cache) %>,
         cache_ttl_seconds: 300,
@@ -43,10 +51,27 @@ defmodule <%= @app_module %>.Auth.Config do
       http_only: true,
       secure: false,
       same_site: "Lax",
+      path: "/",
       max_age: session_ttl_days() * 86_400
     ]
 
     Keyword.merge(defaults, Keyword.get(all(), :cookie_opts, []))
+  end
+
+  @doc """
+  Enforces CSRF checks on cookie-authenticated GraphQL requests (rejects `Sec-Fetch-Site: cross-site`
+  and non-JSON POST requests). Defaults to `true`.
+  """
+  def csrf_protection? do
+    Keyword.get(all(), :csrf_protection, true)
+  end
+
+  @doc """
+  When `false` (default), ignores `X-Forwarded-For` headers and uses `conn.remote_ip` directly
+  to prevent rate-limit spoofing. Enable only behind a trusted reverse proxy.
+  """
+  def trust_proxy? do
+    Keyword.get(all(), :trust_proxy, false)
   end
 
   def session_ttl_days do

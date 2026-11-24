@@ -287,7 +287,13 @@ defmodule AbsintheInitializer do
     """
 
     updated_content =
-      insert_absinthe_routes(router_content, project_module, route_marker, cookies_enabled)
+      insert_absinthe_routes(
+        router_content,
+        project_name,
+        project_module,
+        route_marker,
+        cookies_enabled
+      )
 
     File.write!(router_path, updated_content)
 
@@ -310,7 +316,13 @@ defmodule AbsintheInitializer do
     end
   end
 
-  defp insert_absinthe_routes(content, project_module, route_marker, cookies_enabled) do
+  defp insert_absinthe_routes(
+         content,
+         project_name,
+         project_module,
+         route_marker,
+         cookies_enabled
+       ) do
     before_send_opt =
       if cookies_enabled do
         ",\n        before_send: {#{project_module}Web.Plugs.AuthCookie, :before_send}"
@@ -324,11 +336,19 @@ defmodule AbsintheInitializer do
 
         forward "/api",
           Absinthe.Plug,
-          schema: #{project_module}Web.Schema#{before_send_opt}
+          schema: #{project_module}Web.Schema,
+          analyze_complexity: true,
+          max_complexity: 200#{before_send_opt}
+      end
 
-        forward "/graphiql",
-          Absinthe.Plug.GraphiQL,
-          schema: #{project_module}Web.Schema#{before_send_opt}
+      if Application.compile_env(:#{project_name}, :dev_routes) do
+        scope "/" do
+          pipe_through :api
+
+          forward "/graphiql",
+            Absinthe.Plug.GraphiQL,
+            schema: #{project_module}Web.Schema#{before_send_opt}
+        end
       end
     """
 
@@ -353,7 +373,15 @@ defmodule AbsintheInitializer do
         config :#{project_name}, #{project_module}.Auth,
           transport: #{inspect(auth_transport)},
           cookie_name: "_#{project_name}_session",
-          cookie_opts: [http_only: true, secure: false, same_site: "Lax", max_age: 604_800],
+          cookie_opts: [
+            http_only: true,
+            secure: config_env() == :prod,
+            same_site: "Lax",
+            path: "/",
+            max_age: 604_800
+          ],
+          csrf_protection: true,
+          trust_proxy: false,
           session_ttl_days: 7,
           cache: #{inspect(cache)},
           cache_ttl_seconds: 300,

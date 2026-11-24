@@ -18,7 +18,8 @@ defmodule <%= @app_module %>Web.Plugs.AuthCookie do
 
   def before_send(conn, %Absinthe.Blueprint{execution: %{context: %{auth_cookie: :delete}}}) do
     if Config.cookies_enabled?() do
-      delete_resp_cookie(conn, Config.cookie_name(), Config.cookie_opts())
+      delete_opts = Keyword.delete(Config.cookie_opts(), :max_age)
+      delete_resp_cookie(conn, Config.cookie_name(), delete_opts)
     else
       conn
     end

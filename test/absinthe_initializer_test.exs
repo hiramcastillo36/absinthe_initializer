@@ -106,6 +106,9 @@ defmodule AbsintheInitializerTest do
         assert_valid_elixir!(Path.join([tmp_dir, "lib", "my_app_web", "router.ex"]))
 
       assert router_content =~ ~s(forward "/api")
+      assert router_content =~ "analyze_complexity: true"
+      assert router_content =~ "max_complexity: 200"
+      assert router_content =~ "if Application.compile_env(:my_app, :dev_routes) do"
       assert router_content =~ ~s(forward "/graphiql")
       assert router_content =~ "schema: MyAppWeb.Schema"
       refute router_content =~ "SetCurrentUser"
@@ -154,6 +157,9 @@ defmodule AbsintheInitializerTest do
       config_content = assert_valid_elixir!(Path.join([tmp_dir, "config", "config.exs"]))
       assert config_content =~ "config :my_app, MyApp.Auth,"
       assert config_content =~ "transport: :both"
+      assert config_content =~ "secure: config_env() == :prod"
+      assert config_content =~ "csrf_protection: true"
+      assert config_content =~ "trust_proxy: false"
       assert config_content =~ "cache: :ets"
       assert config_content =~ "enabled: true"
 
@@ -213,7 +219,10 @@ defmodule AbsintheInitializerTest do
       mutations_content = File.read!(mutations_path)
 
       assert mutations_content =~ "field :sign_out_all, :sign_out_result"
-      assert mutations_content =~ "middleware Middleware.RateLimit, action: :sign_in"
+
+      assert mutations_content =~
+               "middleware Middleware.RateLimit, action: :sign_in, by_arg: :email"
+
       assert mutations_content =~ "middleware Middleware.AuthCookie, :put"
 
       migrations =

@@ -1,7 +1,7 @@
 defmodule <%= @app_module %>Web.Schema.Middleware.Authenticate do
   @moduledoc """
   Absinthe middleware that ensures a valid `current_user` is present in the GraphQL context
-  and returns distinct errors for missing, invalid/expired, or rate-limited session tokens.
+  and returns distinct errors for missing, invalid/expired, CSRF-rejected, or rate-limited tokens.
   """
 
   @behaviour Absinthe.Middleware
@@ -11,6 +11,13 @@ defmodule <%= @app_module %>Web.Schema.Middleware.Authenticate do
   @impl Absinthe.Middleware
   def call(%{context: %{current_user: %User{}}} = resolution, _opts) do
     resolution
+  end
+
+  def call(%{context: %{auth_error: :csrf_rejected}} = resolution, _opts) do
+    Absinthe.Resolution.put_result(
+      resolution,
+      {:error, "Cross-site cookie request rejected. Use application/json content type."}
+    )
   end
 
   def call(%{context: %{auth_error: :rate_limited}} = resolution, _opts) do

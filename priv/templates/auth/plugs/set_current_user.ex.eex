@@ -1,9 +1,9 @@
 defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
   @moduledoc """
   Plug that extracts the session token (from Bearer header and/or HttpOnly cookie
-  depending on `<%= @app_module %>.Auth.Config.transport/0`), resolves `current_user`
-  once (via cache or database), blocks invalid token spraying, and populates the
-  Absinthe context.
+  depending on `<%= @app_module %>.Auth.Config.transport/0`), enforces CSRF checks
+  on cookie-authenticated requests, resolves `current_user` once (via cache or database),
+  blocks invalid token spraying, and populates the Absinthe context.
   """
 
   @behaviour Plug
@@ -29,11 +29,47 @@ defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
     base = %{remote_ip: remote_ip}
 
     case extract_token(conn) do
-      {:ok, source, token} ->
-        resolve_token_context(base, remote_ip, source, token)
+      {:ok, :cookie, token} ->
+        if csrf_safe?(conn) do
+          resolve_token_context(base, remote_ip, :cookie, token)
+        else
+          Map.put(base, :auth_error, :csrf_rejected)
+        end
+
+      {:ok, :bearer, token} ->
+        resolve_token_context(base, remote_ip, :bearer, token)
 
       :error ->
         base
+    end
+  end
+
+  defp csrf_safe?(conn) do
+    if Config.csrf_protection?() do
+      not cross_site_fetch?(conn) and valid_cookie_content_type?(conn)
+    else
+      true
+    end
+  end
+
+  defp cross_site_fetch?(conn) do
+    case get_req_header(conn, "sec-fetch-site") do
+      ["cross-site"] -> true
+      _ -> false
+    end
+  end
+
+  defp valid_cookie_content_type?(%{method: "GET"}), do: true
+
+  defp valid_cookie_content_type?(conn) do
+    case get_req_header(conn, "content-type") do
+      [content_type | _] ->
+        content_type
+        |> String.downcase()
+        |> String.starts_with?("application/json")
+
+      [] ->
+        false
     end
   end
 
@@ -122,12 +158,20 @@ defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
   end
 
   defp extract_remote_ip(conn) do
-    case get_req_header(conn, "x-forwarded-for") do
-      [forwarded | _] ->
-        forwarded |> String.split(",") |> List.first() |> String.trim()
+    if Config.trust_proxy?() do
+      case get_req_header(conn, "x-forwarded-for") do
+        [forwarded | _] ->
+          forwarded |> String.split(",") |> List.last() |> String.trim()
 
-      [] ->
-        conn.remote_ip |> :inet.ntoa() |> to_string()
+        [] ->
+          format_peer_ip(conn)
+      end
+    else
+      format_peer_ip(conn)
     end
+  end
+
+  defp format_peer_ip(conn) do
+    conn.remote_ip |> :inet.ntoa() |> to_string()
   end
 end

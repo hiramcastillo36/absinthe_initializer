@@ -92,7 +92,15 @@ When `--auth` is enabled, `AbsintheInitializer` injects a configuration block in
 config :my_app, MyApp.Auth,
   transport: :both,
   cookie_name: "_my_app_session",
-  cookie_opts: [http_only: true, secure: false, same_site: "Lax", max_age: 604_800],
+  cookie_opts: [
+    http_only: true,
+    secure: config_env() == :prod,
+    same_site: "Lax",
+    path: "/",
+    max_age: 604_800
+  ],
+  csrf_protection: true,
+  trust_proxy: false,
   session_ttl_days: 7,
   cache: :ets,
   cache_ttl_seconds: 300,

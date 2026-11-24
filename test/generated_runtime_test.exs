@@ -53,6 +53,9 @@ defmodule AbsintheInitializer.GeneratedRuntimeTest do
       assert config.cookies_enabled?()
       assert config.bearer_enabled?()
       assert config.cookie_name() == "_runtime_test_app_session"
+      assert Keyword.get(config.cookie_opts(), :path) == "/"
+      assert config.csrf_protection?()
+      refute config.trust_proxy?()
       assert config.session_ttl_days() == 7
       assert config.cache() == :ets
       assert config.cache_ttl_seconds() == 300
