@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In-memory token length validation (`byte_size == 32`) before hitting cache or database, distinct `:invalid_token` / `:rate_limited` errors in auth middleware, and automatic cleanup of invalid/expired session cookies.
 - Centralized runtime auth configuration (`MyApp.Auth.Config`) injected into `config/config.exs` and supervision tree children injected into `application.ex`.
 - `sign_out_all` GraphQL mutation to revoke all active sessions across devices.
+- Live runtime unit tests for generated `Auth.Config`, `SessionCache.ETS`, and `RateLimiter` modules.
+- End-to-end regression suite (`scripts/e2e_regression.sh` + `e2e/auth_e2e_test.exs`) and CI `e2e` job generating a real Phoenix + PostgreSQL app to verify the full GraphQL auth lifecycle.
 
 ### Changed
 - Migrated all code generators to EEx templates under `priv/templates/` (bundled in Hex package).
