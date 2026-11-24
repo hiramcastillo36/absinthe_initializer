@@ -20,6 +20,22 @@
   - **Invalid token hardening:** rejects malformed tokens in memory before touching cache/DB, returns distinct errors for missing vs invalid/expired vs rate-limited tokens, and automatically clears invalid/expired cookies.
   - **Centralized runtime configuration** in `config/config.exs` + automatic supervision tree wiring in `application.ex`.
 
+## Compatibility Matrix
+
+Every combination below is verified automatically in GitHub Actions (library unit & runtime tests plus full end-to-end Phoenix + PostgreSQL GraphQL authentication regression tests via [`scripts/e2e_regression.sh`](https://github.com/hiramcastillo36/absinthe_initializer/blob/master/scripts/e2e_regression.sh)):
+
+| Elixir | Erlang/OTP | Phoenix | Absinthe | Test Scope | Status |
+| --- | --- | --- | --- | --- | --- |
+| `1.16.3` | `26.2` | `~> 1.7` (`phx_new 1.7.21`) | `~> 1.7` | Unit + Runtime + E2E (PostgreSQL 16) | Tested in CI |
+| `1.17.3` | `27.2` | `~> 1.7` (`phx_new 1.7.21`) | `~> 1.7` | Unit + Runtime + E2E (PostgreSQL 16) | Tested in CI |
+| `1.18.3` | `27.2` | `~> 1.7` (`phx_new 1.7.21`) | `~> 1.7` | Unit + Runtime + E2E (PostgreSQL 16) | Tested in CI |
+| `1.18.3` | `27.2` | `~> 1.8` (`phx_new 1.8.0`) | `~> 1.7` | Unit + Runtime + E2E (PostgreSQL 16) | Tested in CI |
+
+> **Local E2E regression:** You can run the exact same end-to-end suite locally against any supported `phx_new` version:
+> ```bash
+> PHX_NEW_VERSION=1.8.0 ./scripts/e2e_regression.sh
+> ```
+
 ## Installation
 
 Add `absinthe_initializer` to your Phoenix project's `mix.exs`:

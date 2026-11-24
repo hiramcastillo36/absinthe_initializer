@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/absinthe_e2e.XXXXXX")"
+PHX_NEW_VERSION="${PHX_NEW_VERSION:-1.7.21}"
 
 cleanup() {
   if [ "${KEEP_E2E_DIR:-0}" != "1" ]; then
@@ -13,8 +14,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "==> Installing phx_new archive (1.7.21)..."
-mix archive.install hex phx_new 1.7.21 --force
+echo "==> Installing phx_new archive ($PHX_NEW_VERSION)..."
+mix archive.install hex phx_new "$PHX_NEW_VERSION" --force
 
 echo "==> Generating fresh Phoenix API project in $WORK_DIR/e2e_app..."
 cd "$WORK_DIR"

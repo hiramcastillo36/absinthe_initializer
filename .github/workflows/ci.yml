@@ -98,8 +98,28 @@ jobs:
         run: mix docs --warnings-as-errors
 
   e2e:
-    name: E2E Regression (Phoenix + PostgreSQL)
+    name: E2E Regression (Elixir ${{ matrix.elixir }} / Phoenix ${{ matrix.phoenix_label }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.16.3"
+            otp: "26.2"
+            phx_new: "1.7.21"
+            phoenix_label: "1.7"
+          - elixir: "1.17.3"
+            otp: "27.2"
+            phx_new: "1.7.21"
+            phoenix_label: "1.7"
+          - elixir: "1.18.3"
+            otp: "27.2"
+            phx_new: "1.7.21"
+            phoenix_label: "1.7"
+          - elixir: "1.18.3"
+            otp: "27.2"
+            phx_new: "1.8.0"
+            phoenix_label: "1.8"
 
     services:
       postgres:
@@ -121,8 +141,10 @@ jobs:
       - name: Set up Elixir and Erlang
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: "1.18.3"
-          otp-version: "27.2"
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
 
       - name: Run E2E Phoenix regression suite
+        env:
+          PHX_NEW_VERSION: ${{ matrix.phx_new }}
         run: ./scripts/e2e_regression.sh
