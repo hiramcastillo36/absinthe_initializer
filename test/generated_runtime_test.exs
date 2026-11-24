@@ -1,6 +1,14 @@
 defmodule AbsintheInitializer.GeneratedRuntimeTest do
   use ExUnit.Case, async: false
 
+  @compile {:no_warn_undefined,
+            [
+              RuntimeTestApp.Auth.Config,
+              RuntimeTestApp.Auth.SessionCache,
+              RuntimeTestApp.Auth.SessionCache.ETS,
+              RuntimeTestApp.Auth.RateLimiter
+            ]}
+
   alias AbsintheInitializer.Template
 
   @assigns [

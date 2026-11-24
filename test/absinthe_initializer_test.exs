@@ -97,9 +97,9 @@ defmodule AbsintheInitializerTest do
       end)
 
       mix_content = assert_valid_elixir!(Path.join(tmp_dir, "mix.exs"))
-      assert mix_content =~ ~s({:absinthe, "~> 1.7.0"})
+      assert mix_content =~ ~s({:absinthe, "~> 1.7"})
       assert mix_content =~ ~s({:absinthe_plug, "~> 1.5"})
-      assert mix_content =~ ~s({:absinthe_phoenix, "~> 2.0.1"})
+      assert mix_content =~ ~s({:absinthe_phoenix, "~> 2.0"})
       refute mix_content =~ "bcrypt_elixir"
 
       router_content =

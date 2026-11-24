@@ -251,9 +251,9 @@ defmodule AbsintheInitializer do
     mix_content = File.read!(mix_path)
 
     base_deps = [
-      ~s(      {:absinthe, "~> 1.7.0"},),
+      ~s(      {:absinthe, "~> 1.7"},),
       ~s(      {:absinthe_plug, "~> 1.5"},),
-      ~s(      {:absinthe_phoenix, "~> 2.0.1"},)
+      ~s(      {:absinthe_phoenix, "~> 2.0"},)
     ]
 
     auth_deps = if with_auth, do: [~s(      {:bcrypt_elixir, "~> 3.0"},)], else: []
@@ -360,12 +360,12 @@ defmodule AbsintheInitializer do
           rate_limit: [enabled: #{rate_limit}, max_requests: 10, window_seconds: 60]
         """
 
+        import_line = ~S|import_config "#{config_env()}.exs"|
+
         updated =
-          case String.split(content, ~s(import_config "\#{config_env()}.exs"), parts: 2) do
+          case String.split(content, import_line, parts: 2) do
             [before, after_import] ->
-              before <>
-                auth_config <>
-                "\n" <> ~s(import_config "\#{config_env()}.exs") <> after_import
+              before <> auth_config <> "\n" <> import_line <> after_import
 
             _ ->
               String.trim_trailing(content) <> "\n\n" <> auth_config
