@@ -148,6 +148,16 @@ priv/
       <timestamp>_create_users.exs
 ```
 
+## Demo Repository
+
+Explore runnable Phoenix 1.8 + Docker Compose examples for every configuration mode in [`absinthe_initializer_demo`](https://github.com/hiramcastillo36/absinthe_initializer_demo):
+
+- [`main`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/main) — `mix absinthe_initializer --auth` (HttpOnly cookies + Bearer + ETS cache + rate limiting)
+- [`basic-no-auth`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/basic-no-auth) — `mix absinthe_initializer` (GraphQL only, no authentication)
+- [`auth-cookie-only`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/auth-cookie-only) — `--auth --auth-transport cookie --cache ets` (SPA cookie-only)
+- [`auth-bearer-cachex`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/auth-bearer-cachex) — `--auth --auth-transport bearer --cache cachex` (Bearer + Cachex)
+- [`auth-minimal`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/auth-minimal) — `--auth --auth-transport bearer --cache none --no-rate-limit`
+
 ## Contributing
 
 Contributions are welcome! Feel free to submit issues or pull requests against the `dev` branch.
