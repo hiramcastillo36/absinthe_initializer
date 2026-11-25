@@ -10,14 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Configurable authentication transport via `--auth-transport bearer|cookie|both` (default: `both`), including HttpOnly/SameSite cookie support via Absinthe `before_send` and `Middleware.AuthCookie`.
 - Configurable session caching via `--cache ets|cachex|none` (default: `ets`) with `@behaviour SessionCache`, zero-dependency ETS adapter with TTL cleanup, Cachex adapter, and automatic invalidation on `sign_out`, `sign_out_all`, role updates, user deletion, and password/email changes.
-- Built-in ETS rate limiting (`--rate-limit` / `--no-rate-limit`) for `sign_in` (dual IP + normalized email buckets), `sign_up`, and invalid session token spraying protection (`RateLimiter.blocked?/3`), ignoring spoofable `X-Forwarded-For` headers unless `trust_proxy: true`.
-- Cookie CSRF protection (`csrf_protection: true`, halting cross-site and non-JSON POST requests with `403` to prevent Login CSRF and authenticated CSRF), GraphQL JSON batching protection (`max_batch_size: 1`), SHA-256 hashed rate-limit argument keys, `secure: config_env() == :prod` cookie default, GraphQL query complexity limit (`max_complexity: 200`), and `/graphiql` gated behind `:dev_routes`.
-- Offensive security audit suite (`e2e/security_audit_test.exs`, `SEC-01`–`SEC-12`) executed on every CI run.
-- In-memory token length validation (`byte_size == 32`) before hitting cache or database, distinct `:invalid_token` / `:rate_limited` errors in auth middleware, and automatic cleanup of invalid/expired session cookies.
+- Built-in ETS rate limiting (`--rate-limit` / `--no-rate-limit`) for `sign_in`, `sign_up`, and invalid session tokens (`RateLimiter.blocked?/3`), configurable via `trust_proxy` and `rate_limit`.
+- Configurable cookie CSRF checks (`csrf_protection: true`), GraphQL batch size limit (`max_batch_size: 1`), `secure: config_env() == :prod` cookie default, GraphQL query complexity limit (`max_complexity: 200`), and `/graphiql` gated behind `:dev_routes`.
+- In-memory token format validation before hitting cache or database, distinct `:invalid_token` / `:rate_limited` errors in auth middleware, and automatic cleanup of invalid/expired session cookies.
 - Centralized runtime auth configuration (`MyApp.Auth.Config`) injected into `config/config.exs` and supervision tree children injected into `application.ex`.
 - `sign_out_all` GraphQL mutation to revoke all active sessions across devices.
 - Live runtime unit tests for generated `Auth.Config`, `SessionCache.ETS`, and `RateLimiter` modules.
-- End-to-end regression suite (`scripts/e2e_regression.sh` + `e2e/auth_e2e_test.exs`) and CI `e2e` job generating a real Phoenix + PostgreSQL app to verify the full GraphQL auth lifecycle.
+- End-to-end regression suite (`scripts/e2e_regression.sh`) and CI `e2e` matrix verifying Elixir 1.16–1.18 and Phoenix 1.7–1.8 against PostgreSQL 16.
 
 ### Changed
 - Migrated all code generators to EEx templates under `priv/templates/` (bundled in Hex package).
@@ -25,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hashed session tokens with SHA-256 before storing them in `users_tokens`.
 
 ### Fixed
-- Removed `:is_admin` from `User.registration_changeset/3` to prevent mass assignment, and added explicit `User.role_changeset/2`.
+- Separated admin role updates into `User.role_changeset/2` instead of casting `:is_admin` in `User.registration_changeset/3`.
 - Protected `me`, `sign_out`, and `sign_out_all` with `Middleware.Authenticate`.
 - Added missing mailer functions to `UserNotifier`.
 
