@@ -94,6 +94,9 @@ jobs:
       - name: Audit Hex dependencies
         run: mix hex.audit
 
+      - name: Audit dependencies for known CVEs
+        run: mix deps.audit
+
       - name: Build documentation
         run: mix docs --warnings-as-errors
 
