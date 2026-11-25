@@ -265,7 +265,7 @@ defmodule E2eAppWeb.AuthE2eTest do
                      "Cross-site cookie request rejected. Use application/json content type."
                  }
                ]
-             } = json_response(cross_site_conn, 200)
+             } = json_response(cross_site_conn, 403)
 
       # Simple form POST (application/x-www-form-urlencoded) with cookie -> rejected
       form_csrf_conn =
@@ -281,7 +281,7 @@ defmodule E2eAppWeb.AuthE2eTest do
                      "Cross-site cookie request rejected. Use application/json content type."
                  }
                ]
-             } = json_response(form_csrf_conn, 200)
+             } = json_response(form_csrf_conn, 403)
     end
 
     test "GraphiQL is not exposed when dev_routes is disabled and complexity limit blocks DoS" do

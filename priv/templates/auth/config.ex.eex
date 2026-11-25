@@ -74,6 +74,14 @@ defmodule <%= @app_module %>.Auth.Config do
     Keyword.get(all(), :trust_proxy, false)
   end
 
+  @doc """
+  Maximum number of batched GraphQL operations allowed in a single JSON array request.
+  Defaults to `1` (batching disabled) to prevent complexity-limit multiplication.
+  """
+  def max_batch_size do
+    Keyword.get(all(), :max_batch_size, 1)
+  end
+
   def session_ttl_days do
     Keyword.get(all(), :session_ttl_days, 7)
   end

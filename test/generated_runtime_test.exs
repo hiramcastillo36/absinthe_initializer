@@ -56,6 +56,7 @@ defmodule AbsintheInitializer.GeneratedRuntimeTest do
       assert Keyword.get(config.cookie_opts(), :path) == "/"
       assert config.csrf_protection?()
       refute config.trust_proxy?()
+      assert config.max_batch_size() == 1
       assert config.session_ttl_days() == 7
       assert config.cache() == :ets
       assert config.cache_ttl_seconds() == 300

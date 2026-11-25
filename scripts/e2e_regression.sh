@@ -55,8 +55,9 @@ MIX_ENV=test mix ecto.migrate
 echo "==> Compiling generated Phoenix app with --warnings-as-errors..."
 MIX_ENV=test mix compile --warnings-as-errors
 
-echo "==> Running end-to-end GraphQL authentication regression tests..."
+echo "==> Running end-to-end GraphQL authentication & security audit tests..."
 cp "$REPO_DIR/e2e/auth_e2e_test.exs" "$WORK_DIR/e2e_app/test/e2e_app_web/auth_e2e_test.exs"
-MIX_ENV=test mix test test/e2e_app_web/auth_e2e_test.exs
+cp "$REPO_DIR/e2e/security_audit_test.exs" "$WORK_DIR/e2e_app/test/e2e_app_web/security_audit_test.exs"
+MIX_ENV=test mix test test/e2e_app_web/auth_e2e_test.exs test/e2e_app_web/security_audit_test.exs
 
 echo "==> E2E regression suite passed!"
