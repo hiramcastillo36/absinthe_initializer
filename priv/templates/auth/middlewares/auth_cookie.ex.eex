@@ -1,0 +1,41 @@
+defmodule <%= @app_module %>Web.Schema.Middleware.AuthCookie do
+  @moduledoc """
+  Post-resolution Absinthe middleware that records cookie actions (`{:put, token}` or `:delete`)
+  into `resolution.context` so `<%= @app_module %>Web.Plugs.AuthCookie.before_send/2` can update
+  response cookies safely.
+
+  When `transport: :cookie` (Bearer disabled), strips the raw token from the GraphQL response
+  body so it is only delivered via the `HttpOnly` cookie.
+  """
+
+  @behaviour Absinthe.Middleware
+
+  alias <%= @app_module %>.Auth.Config
+
+  @impl Absinthe.Middleware
+  def call(%{errors: [], value: %{token: token} = value} = resolution, :put)
+      when is_binary(token) do
+    resolution =
+      if Config.cookies_enabled?() do
+        %{resolution | context: Map.put(resolution.context, :auth_cookie, {:put, token})}
+      else
+        resolution
+      end
+
+    if Config.bearer_enabled?() do
+      resolution
+    else
+      %{resolution | value: Map.put(value, :token, nil)}
+    end
+  end
+
+  def call(%{errors: []} = resolution, :delete) do
+    if Config.cookies_enabled?() do
+      %{resolution | context: Map.put(resolution.context, :auth_cookie, :delete)}
+    else
+      resolution
+    end
+  end
+
+  def call(resolution, _action), do: resolution
+end

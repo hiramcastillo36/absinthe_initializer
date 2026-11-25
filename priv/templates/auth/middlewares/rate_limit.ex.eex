@@ -1,0 +1,65 @@
+defmodule <%= @app_module %>Web.Schema.Middleware.RateLimit do
+  @moduledoc """
+  Absinthe middleware that enforces rate limiting per client IP and optionally per
+  normalized GraphQL argument (e.g. `:email`) to protect against distributed brute-force attacks.
+
+  ## Usage
+
+      middleware <%= @app_module %>Web.Schema.Middleware.RateLimit, action: :sign_in, by_arg: :email
+  """
+
+  @behaviour Absinthe.Middleware
+
+  alias <%= @app_module %>.Auth.{Config, RateLimiter}
+
+  @impl Absinthe.Middleware
+  def call(resolution, opts) do
+    if Config.rate_limit_enabled?() do
+      action = Keyword.get(opts, :action, :default)
+      max_requests = Keyword.get(opts, :max_requests, Config.rate_limit_max_requests())
+      window_seconds = Keyword.get(opts, :window_seconds, Config.rate_limit_window_seconds())
+      remote_ip = Map.get(resolution.context, :remote_ip, "unknown")
+
+      buckets = build_buckets(action, remote_ip, resolution.arguments, Keyword.get(opts, :by_arg))
+
+      case check_buckets(buckets, max_requests, window_seconds) do
+        :ok ->
+          resolution
+
+        {:error, :rate_limited} ->
+          Absinthe.Resolution.put_result(
+            resolution,
+            {:error, "Too many requests. Please try again later."}
+          )
+      end
+    else
+      resolution
+    end
+  end
+
+  defp build_buckets(action, remote_ip, _args, nil) do
+    [{action, remote_ip}]
+  end
+
+  defp build_buckets(action, remote_ip, args, arg_key) do
+    ip_bucket = {action, remote_ip}
+
+    case Map.get(args, arg_key) do
+      value when is_binary(value) ->
+        hashed = :crypto.hash(:sha256, value |> String.trim() |> String.downcase())
+        [ip_bucket, {{action, arg_key}, hashed}]
+
+      _ ->
+        [ip_bucket]
+    end
+  end
+
+  defp check_buckets(buckets, max_requests, window_seconds) do
+    Enum.reduce_while(buckets, :ok, fn bucket, :ok ->
+      case RateLimiter.check_rate(bucket, max_requests, window_seconds) do
+        :ok -> {:cont, :ok}
+        {:error, :rate_limited} -> {:halt, {:error, :rate_limited}}
+      end
+    end)
+  end
+end

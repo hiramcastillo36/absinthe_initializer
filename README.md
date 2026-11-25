@@ -5,18 +5,40 @@
 [![HexDocs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/absinthe_initializer)
 [![License: MIT](https://img.shields.io/hexpm/l/absinthe_initializer.svg)](LICENSE)
 
-`AbsintheInitializer` is a Mix task that automates the setup of a GraphQL API using Absinthe in your Phoenix project. This tool simplifies the process of configuring Absinthe, routing, and optionally setting up authentication, allowing you to focus on developing your GraphQL API quickly.
+`AbsintheInitializer` is a Mix task that automates the setup of a GraphQL API using Absinthe in your Phoenix project, with optional production-ready, configurable authentication.
 
 ## Features
 
-- Automatically sets up Absinthe and adds the necessary dependencies to your `mix.exs` file.
-- Configures routing for the GraphQL API and the GraphiQL interface.
-- Optionally adds user authentication, including middleware, resolvers, and migrations.
-- Generates a schema, mutations, queries, and types for your GraphQL API.
+- Automatically adds Absinthe dependencies to `mix.exs` and configures `/api` and `/graphiql` routes in your Phoenix router.
+- Generates a GraphQL schema and Ecto `ChangesetErrors` helper.
+- Optional hardened authentication (`--auth`) with:
+  - **Configurable transport (`--auth-transport bearer|cookie|both`):** HttpOnly / SameSite cookies via Absinthe `before_send`, Bearer headers, or hybrid mode (default: `both`).
+  - **Configurable session cache (`--cache ets|cachex|none`):** `@behaviour SessionCache` with a zero-dependency ETS adapter (with TTL & cleanup) or Cachex, plus instant cache invalidation on `sign_out`, `sign_out_all`, and password changes.
+  - **SHA-256 hashed session tokens in DB:** raw tokens are never stored in PostgreSQL.
+  - **Single user lookup per request:** `SetCurrentUser` resolves `current_user` once (cache → DB) into the Absinthe context.
+  - **Built-in ETS rate limiting (`--rate-limit` / `--no-rate-limit`):** configurable rate limiting for `sign_in`, `sign_up`, and invalid session tokens with zero extra dependencies.
+  - **Session token validation & cookie cleanup:** validates token format before hitting cache/DB, returns distinct errors for missing vs invalid/expired vs rate-limited tokens, and automatically clears invalid/expired cookies.
+  - **Centralized runtime configuration** in `config/config.exs` + automatic supervision tree wiring in `application.ex`.
+
+## Compatibility Matrix
+
+Every combination below is verified automatically in GitHub Actions (library unit & runtime tests plus full end-to-end Phoenix + PostgreSQL GraphQL authentication regression tests via [`scripts/e2e_regression.sh`](https://github.com/hiramcastillo36/absinthe_initializer/blob/master/scripts/e2e_regression.sh)):
+
+| Elixir | Erlang/OTP | Phoenix | Absinthe | Test Scope | Status |
+| --- | --- | --- | --- | --- | --- |
+| `1.16.3` | `26.2` | `~> 1.7` (`phx_new 1.7.21`) | `~> 1.7` | Unit + Runtime + E2E (PostgreSQL 16) | Tested in CI |
+| `1.17.3` | `27.2` | `~> 1.7` (`phx_new 1.7.21`) | `~> 1.7` | Unit + Runtime + E2E (PostgreSQL 16) | Tested in CI |
+| `1.18.3` | `27.2` | `~> 1.7` (`phx_new 1.7.21`) | `~> 1.7` | Unit + Runtime + E2E (PostgreSQL 16) | Tested in CI |
+| `1.18.3` | `27.2` | `~> 1.8` (`phx_new 1.8.0`) | `~> 1.7` | Unit + Runtime + E2E (PostgreSQL 16) | Tested in CI |
+
+> **Local E2E regression:** You can run the exact same end-to-end suite locally against any supported `phx_new` version:
+> ```bash
+> PHX_NEW_VERSION=1.8.0 ./scripts/e2e_regression.sh
+> ```
 
 ## Installation
 
-To install `AbsintheInitializer`, add the following dependency to your Phoenix project's `mix.exs`:
+Add `absinthe_initializer` to your Phoenix project's `mix.exs`:
 
 ```elixir
 defp deps do
@@ -26,7 +48,7 @@ defp deps do
 end
 ```
 
-Fetch the dependencies with:
+Fetch dependencies:
 
 ```bash
 mix deps.get
@@ -34,90 +56,116 @@ mix deps.get
 
 ## Usage
 
-`AbsintheInitializer` can be used through a Mix task that configures Absinthe in your Phoenix project. The task also provides an option to enable user authentication.
-
-### Basic Setup
-
-To initialize Absinthe without authentication, simply run:
+### Basic Setup (without authentication)
 
 ```bash
 mix absinthe_initializer
 ```
 
-This command will:
-- Add the required Absinthe dependencies to your `mix.exs`.
-- Set up GraphQL routes in your Phoenix router.
-- Generate a basic GraphQL schema.
-
-### Setup with Authentication
-
-To initialize Absinthe with user authentication, run the task with the `--auth` flag:
+### Hardened Authentication Setup
 
 ```bash
+# Default auth: both HttpOnly cookies & Bearer tokens, ETS cache, ETS rate limiting
 mix absinthe_initializer --auth
+
+# Cookie-only SPA setup with ETS cache
+mix absinthe_initializer --auth --auth-transport cookie --cache ets
+
+# API/mobile Bearer-only setup with Cachex and no rate limiting
+mix absinthe_initializer --auth --auth-transport bearer --cache cachex --no-rate-limit
 ```
 
-This command will:
-- Add Absinthe and authentication-related dependencies (e.g., `bcrypt_elixir`).
-- Generate user context, schema, and migrations.
-- Set up GraphQL mutations, queries, and types for user accounts.
-- Configure middleware for authentication.
+### CLI Options
 
-### Example
+| Flag | Values | Default | Description |
+| --- | --- | --- | --- |
+| `--auth` | boolean | `false` | Enables full authentication scaffolding |
+| `--auth-transport` | `bearer`, `cookie`, `both` | `both` | Token delivery & extraction mode |
+| `--cache` | `ets`, `cachex`, `none` | `ets` | Session cache adapter |
+| `--rate-limit` / `--no-rate-limit` | boolean | `true` | ETS rate limiting on `sign_in` / `sign_up` |
 
-```bash
-# Basic setup without authentication
-mix absinthe_initializer
+## Runtime Configuration (`config/config.exs`)
 
-# Setup with authentication
-mix absinthe_initializer --auth
+When `--auth` is enabled, `AbsintheInitializer` injects a configuration block into `config/config.exs` that you can override per environment (for example setting `secure: true` in `config/runtime.exs` for production HTTPS):
+
+```elixir
+config :my_app, MyApp.Auth,
+  transport: :both,
+  cookie_name: "_my_app_session",
+  cookie_opts: [
+    http_only: true,
+    secure: config_env() == :prod,
+    same_site: "Lax",
+    path: "/",
+    max_age: 604_800
+  ],
+  csrf_protection: true,
+  trust_proxy: false,
+  session_ttl_days: 7,
+  cache: :ets,
+  cache_ttl_seconds: 300,
+  rate_limit: [enabled: true, max_requests: 10, window_seconds: 60]
 ```
 
-## Project Structure
+## Generated Project Structure (with `--auth`)
 
-After running the `mix absinthe_initializer` task, your project will have the following additions:
-
-```
+```text
 lib/
-  my_project_web/
+  my_app/
+    accounts.ex
+    accounts/
+      user.ex
+      user_token.ex
+      user_notifier.ex
+    auth/
+      config.ex
+      session_cache.ex
+      session_cache/
+        ets.ex               # or cachex.ex when --cache cachex
+      rate_limiter.ex        # when --rate-limit (default)
+  my_app_web/
+    plugs/
+      set_current_user.ex
+      auth_cookie.ex         # when --auth-transport cookie|both
+    resolvers/
+      accounts.ex
     schema/
-      schema.ex        # GraphQL schema
+      schema.ex
+      changeset_errors.ex
+      middleware/
+        authenticate.ex
+        admin_authentication.ex
+        auth_cookie.ex       # when --auth-transport cookie|both
+        rate_limit.ex        # when --rate-limit (default)
       context/
         accounts/
-          queries.ex   # GraphQL queries for user accounts
-          mutations.ex # GraphQL mutations for user accounts
-          types.ex     # GraphQL types for user accounts
-    resolvers/
-      accounts.ex      # Resolver for account queries and mutations
-    plugs/
-      set_current_user.ex  # Plug for setting the current user in the session
+          types.ex
+          queries.ex
+          mutations.ex
+priv/
+  repo/
+    migrations/
+      <timestamp>_create_users.exs
 ```
 
-## Generated Files and Modules
+## Demo Repository
 
-### Authentication Setup (optional)
+Explore runnable Phoenix 1.8 + Docker Compose examples for every configuration mode in [`absinthe_initializer_demo`](https://github.com/hiramcastillo36/absinthe_initializer_demo):
 
-If you run the task with the `--auth` flag, the following modules and files are generated:
-
-- **User context**: Manages user accounts.
-- **GraphQL types, queries, and mutations**: Used for authentication-related operations.
-- **Authentication middleware**: Handles authentication checks in the GraphQL API.
-
-## Development
-
-If you want to extend or customize the functionality of `AbsintheInitializer`, you can modify the generated schema, mutations, queries, or add additional middleware and resolvers to suit your project needs.
+- [`main`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/main) — `mix absinthe_initializer --auth` (HttpOnly cookies + Bearer + ETS cache + rate limiting)
+- [`basic-no-auth`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/basic-no-auth) — `mix absinthe_initializer` (GraphQL only, no authentication)
+- [`auth-cookie-only`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/auth-cookie-only) — `--auth --auth-transport cookie --cache ets` (SPA cookie-only)
+- [`auth-bearer-cachex`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/auth-bearer-cachex) — `--auth --auth-transport bearer --cache cachex` (Bearer + Cachex)
+- [`auth-minimal`](https://github.com/hiramcastillo36/absinthe_initializer_demo/tree/auth-minimal) — `--auth --auth-transport bearer --cache none --no-rate-limit`
 
 ## Contributing
 
-Contributions are welcome! Feel free to submit issues or pull requests to improve this project.
+Contributions are welcome! Feel free to submit issues or pull requests against the `dev` branch.
 
 ## Documentation
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/absinthe_initializer>.
+Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc) and is published on [HexDocs](https://hexdocs.pm/absinthe_initializer).
 
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-

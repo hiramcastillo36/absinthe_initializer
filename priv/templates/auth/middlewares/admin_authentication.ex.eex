@@ -1,0 +1,41 @@
+defmodule <%= @app_module %>Web.Schema.Middleware.AdminAuthentication do
+  @moduledoc """
+  Absinthe middleware that ensures the authenticated `current_user` has admin privileges
+  and returns distinct errors for invalid/expired, CSRF-rejected, or rate-limited tokens.
+  """
+
+  @behaviour Absinthe.Middleware
+
+  alias <%= @app_module %>.Accounts.User
+
+  @impl Absinthe.Middleware
+  def call(%{context: %{current_user: %User{is_admin: true}}} = resolution, _opts) do
+    resolution
+  end
+
+  def call(%{context: %{current_user: %User{}}} = resolution, _opts) do
+    Absinthe.Resolution.put_result(resolution, {:error, "Not authorized!"})
+  end
+
+  def call(%{context: %{auth_error: :csrf_rejected}} = resolution, _opts) do
+    Absinthe.Resolution.put_result(
+      resolution,
+      {:error, "Cross-site cookie request rejected. Use application/json content type."}
+    )
+  end
+
+  def call(%{context: %{auth_error: :rate_limited}} = resolution, _opts) do
+    Absinthe.Resolution.put_result(
+      resolution,
+      {:error, "Too many invalid token attempts. Please try again later."}
+    )
+  end
+
+  def call(%{context: %{auth_error: :invalid_token}} = resolution, _opts) do
+    Absinthe.Resolution.put_result(resolution, {:error, "The session is invalid or expired."})
+  end
+
+  def call(resolution, _opts) do
+    Absinthe.Resolution.put_result(resolution, {:error, "Please sign in first!"})
+  end
+end

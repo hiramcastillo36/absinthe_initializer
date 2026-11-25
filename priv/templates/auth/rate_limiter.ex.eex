@@ -1,0 +1,85 @@
+defmodule <%= @app_module %>.Auth.RateLimiter do
+  @moduledoc """
+  Zero-dependency ETS fixed-window rate limiter for authentication endpoints.
+
+  Add `<%= @app_module %>.Auth.RateLimiter` to your supervision tree in
+  `lib/<%= @app_name %>/application.ex`.
+  """
+
+  use GenServer
+
+  @table __MODULE__
+  @cleanup_interval_ms :timer.minutes(5)
+
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @doc """
+  Returns `true` if `bucket` has already exceeded `max_requests` in the current window
+  without incrementing the counter.
+  """
+  def blocked?(bucket, max_requests, window_seconds)
+      when is_integer(max_requests) and is_integer(window_seconds) do
+    if :ets.whereis(@table) == :undefined do
+      false
+    else
+      now = System.monotonic_time(:second)
+      key = {bucket, div(now, window_seconds)}
+
+      case :ets.lookup(@table, key) do
+        [{^key, count, _expires_at}] -> count >= max_requests
+        [] -> false
+      end
+    end
+  end
+
+  @doc """
+  Checks whether a request for `bucket` is within `max_requests` per `window_seconds`.
+  Returns `:ok` or `{:error, :rate_limited}`.
+  """
+  def check_rate(bucket, max_requests, window_seconds)
+      when is_integer(max_requests) and is_integer(window_seconds) do
+    if :ets.whereis(@table) == :undefined do
+      :ok
+    else
+      now = System.monotonic_time(:second)
+      window_id = div(now, window_seconds)
+      key = {bucket, window_id}
+      expires_at = (window_id + 1) * window_seconds
+
+      count =
+        :ets.update_counter(
+          @table,
+          key,
+          {2, 1},
+          {key, 0, expires_at}
+        )
+
+      if count <= max_requests do
+        :ok
+      else
+        {:error, :rate_limited}
+      end
+    end
+  end
+
+  @impl GenServer
+  def init(_opts) do
+    :ets.new(@table, [:named_table, :set, :public, read_concurrency: true, write_concurrency: true])
+    schedule_cleanup()
+    {:ok, %{}}
+  end
+
+  @impl GenServer
+  def handle_info(:cleanup, state) do
+    now = System.monotonic_time(:second)
+    :ets.select_delete(@table, [{{:_, :_, :"$1"}, [{:<, :"$1", now}], [true]}])
+    schedule_cleanup()
+    {:noreply, state}
+  end
+
+  defp schedule_cleanup do
+    Process.send_after(self(), :cleanup, @cleanup_interval_ms)
+  end
+end

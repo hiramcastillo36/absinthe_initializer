@@ -1,0 +1,147 @@
+defmodule <%= @app_module %>.Accounts.UserToken do
+  use Ecto.Schema
+  import Ecto.Query
+
+  alias <%= @app_module %>.Accounts.UserToken
+  alias <%= @app_module %>.Auth.Config
+
+  @hash_algorithm :sha256
+  @rand_size 32
+
+  @reset_password_validity_in_days 1
+  @confirm_validity_in_days 7
+  @change_email_validity_in_days 7
+
+  schema "users_tokens" do
+    field :token, :binary
+    field :context, :string
+    field :sent_to, :string
+    belongs_to :user, <%= @app_module %>.Accounts.User
+
+    timestamps(updated_at: false)
+  end
+
+  @doc """
+  Generates a URL-safe base64 session token and stores only its SHA-256 hash in the database.
+  """
+  def build_session_token(user) do
+    raw_token = :crypto.strong_rand_bytes(@rand_size)
+    hashed_token = :crypto.hash(@hash_algorithm, raw_token)
+    encoded_token = Base.url_encode64(raw_token, padding: false)
+
+    {encoded_token, %UserToken{token: hashed_token, context: "session", user_id: user.id}}
+  end
+
+  @doc """
+  Validates decoded token byte size (`#{@rand_size}` bytes) and returns its SHA-256 hash
+  for lookup or revocation. Rejects malformed tokens in memory without touching the database.
+  """
+  def hash_session_token(encoded_token) when is_binary(encoded_token) do
+    case Base.url_decode64(encoded_token, padding: false) do
+      {:ok, raw_token} when byte_size(raw_token) == @rand_size ->
+        {:ok, :crypto.hash(@hash_algorithm, raw_token)}
+
+      _ ->
+        :error
+    end
+  end
+
+  def hash_session_token(_), do: :error
+
+  @doc """
+  Checks if the session token is valid and returns its lookup query.
+  """
+  def verify_session_token_query(encoded_token) do
+    case hash_session_token(encoded_token) do
+      {:ok, hashed_token} ->
+        days = Config.session_ttl_days()
+
+        query =
+          from token in by_token_and_context_query(hashed_token, "session"),
+            join: user in assoc(token, :user),
+            where: token.inserted_at > ago(^days, "day"),
+            select: user
+
+        {:ok, query}
+
+      :error ->
+        :error
+    end
+  end
+
+  @doc """
+  Builds a hashed token to be delivered to the user's email.
+  """
+  def build_email_token(user, context) do
+    build_hashed_token(user, context, user.email)
+  end
+
+  defp build_hashed_token(user, context, sent_to) do
+    token = :crypto.strong_rand_bytes(@rand_size)
+    hashed_token = :crypto.hash(@hash_algorithm, token)
+
+    {Base.url_encode64(token, padding: false),
+     %UserToken{
+       token: hashed_token,
+       context: context,
+       sent_to: sent_to,
+       user_id: user.id
+     }}
+  end
+
+  @doc """
+  Verifies a `"confirm"` or `"reset_password"` email token.
+  """
+  def verify_email_token_query(token, context) do
+    case Base.url_decode64(token, padding: false) do
+      {:ok, decoded_token} ->
+        hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
+        days = days_for_context(context)
+
+        query =
+          from token in by_token_and_context_query(hashed_token, context),
+            join: user in assoc(token, :user),
+            where: token.inserted_at > ago(^days, "day") and token.sent_to == user.email,
+            select: user
+
+        {:ok, query}
+
+      :error ->
+        :error
+    end
+  end
+
+  defp days_for_context("confirm"), do: @confirm_validity_in_days
+  defp days_for_context("reset_password"), do: @reset_password_validity_in_days
+
+  @doc """
+  Verifies a `"change:<email>"` token.
+  """
+  def verify_change_email_token_query(token, "change:" <> _ = context) do
+    case Base.url_decode64(token, padding: false) do
+      {:ok, decoded_token} ->
+        hashed_token = :crypto.hash(@hash_algorithm, decoded_token)
+
+        query =
+          from token in by_token_and_context_query(hashed_token, context),
+            where: token.inserted_at > ago(@change_email_validity_in_days, "day")
+
+        {:ok, query}
+
+      :error ->
+        :error
+    end
+  end
+
+  def by_token_and_context_query(token, context) do
+    from UserToken, where: [token: ^token, context: ^context]
+  end
+
+  def by_user_and_contexts_query(user, :all) do
+    from t in UserToken, where: t.user_id == ^user.id
+  end
+
+  def by_user_and_contexts_query(user, [_ | _] = contexts) do
+    from t in UserToken, where: t.user_id == ^user.id and t.context in ^contexts
+  end
+end

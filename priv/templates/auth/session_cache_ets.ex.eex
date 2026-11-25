@@ -1,0 +1,88 @@
+defmodule <%= @app_module %>.Auth.SessionCache.ETS do
+  @moduledoc """
+  Zero-dependency ETS-backed session cache with TTL expiration and periodic cleanup.
+
+  Add `<%= @app_module %>.Auth.SessionCache.ETS` to your supervision tree in
+  `lib/<%= @app_name %>/application.ex`.
+  """
+
+  use GenServer
+
+  @behaviour <%= @app_module %>.Auth.SessionCache
+
+  @table __MODULE__
+  @cleanup_interval_ms :timer.minutes(5)
+
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  end
+
+  @impl <%= @app_module %>.Auth.SessionCache
+  def get(token) when is_binary(token) do
+    if table_ready?() do
+      now = System.monotonic_time(:second)
+
+      case :ets.lookup(@table, token) do
+        [{^token, user, _user_id, expires_at}] when expires_at > now ->
+          {:ok, user}
+
+        [{^token, _user, _user_id, _expired}] ->
+          :ets.delete(@table, token)
+          :miss
+
+        [] ->
+          :miss
+      end
+    else
+      :miss
+    end
+  end
+
+  @impl <%= @app_module %>.Auth.SessionCache
+  def put(token, user, ttl_seconds) when is_binary(token) and is_integer(ttl_seconds) do
+    if table_ready?() do
+      expires_at = System.monotonic_time(:second) + ttl_seconds
+      :ets.insert(@table, {token, user, user.id, expires_at})
+    end
+
+    :ok
+  end
+
+  @impl <%= @app_module %>.Auth.SessionCache
+  def delete(token) when is_binary(token) do
+    if table_ready?(), do: :ets.delete(@table, token)
+    :ok
+  end
+
+  @impl <%= @app_module %>.Auth.SessionCache
+  def delete_user_sessions(user_id) do
+    if table_ready?() do
+      :ets.match_delete(@table, {:_, :_, user_id, :_})
+    end
+
+    :ok
+  end
+
+  @impl GenServer
+  def init(_opts) do
+    :ets.new(@table, [:named_table, :set, :public, read_concurrency: true, write_concurrency: true])
+    schedule_cleanup()
+    {:ok, %{}}
+  end
+
+  @impl GenServer
+  def handle_info(:cleanup, state) do
+    now = System.monotonic_time(:second)
+    :ets.select_delete(@table, [{{:_, :_, :_, :"$1"}, [{:<, :"$1", now}], [true]}])
+    schedule_cleanup()
+    {:noreply, state}
+  end
+
+  defp schedule_cleanup do
+    Process.send_after(self(), :cleanup, @cleanup_interval_ms)
+  end
+
+  defp table_ready? do
+    :ets.whereis(@table) != :undefined
+  end
+end

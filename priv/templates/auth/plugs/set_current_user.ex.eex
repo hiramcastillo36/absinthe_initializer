@@ -1,0 +1,193 @@
+defmodule <%= @app_module %>Web.Plugs.SetCurrentUser do
+  @moduledoc """
+  Plug that enforces CSRF and GraphQL batching protections, extracts the session token
+  (from Bearer header and/or HttpOnly cookie depending on
+  `<%= @app_module %>.Auth.Config.transport/0`), resolves `current_user` once (via cache or
+  database), blocks invalid token spraying, and populates the Absinthe context.
+  """
+
+  @behaviour Plug
+
+  import Plug.Conn
+
+  alias <%= @app_module %>.Accounts
+  alias <%= @app_module %>.Auth.Config
+<%= if @rate_limit do %>  alias <%= @app_module %>.Auth.RateLimiter
+<% end %>
+  @csrf_error_msg "Cross-site cookie request rejected. Use application/json content type."
+  @batch_error_msg "GraphQL request batching exceeds the allowed limit."
+
+  @impl Plug
+  def init(opts), do: opts
+
+  @impl Plug
+  def call(conn, _opts) do
+    cond do
+      batch_limit_exceeded?(conn) ->
+        reject_request(conn, 400, @batch_error_msg)
+
+      Config.cookies_enabled?() and Config.csrf_protection?() and not csrf_safe?(conn) ->
+        reject_request(conn, 403, @csrf_error_msg)
+
+      true ->
+        conn = if Config.cookies_enabled?(), do: fetch_cookies(conn), else: conn
+        context = build_context(conn)
+        Absinthe.Plug.put_options(conn, context: context)
+    end
+  end
+
+  defp batch_limit_exceeded?(%{body_params: %{"_json" => ops}}) when is_list(ops) do
+    length(ops) > Config.max_batch_size() or Config.max_batch_size() <= 1
+  end
+
+  defp batch_limit_exceeded?(_conn), do: false
+
+  defp reject_request(conn, status, message) do
+    body = Phoenix.json_library().encode!(%{errors: [%{message: message}]})
+
+    conn
+    |> put_resp_content_type("application/json")
+    |> send_resp(status, body)
+    |> halt()
+  end
+
+  defp build_context(conn) do
+    remote_ip = extract_remote_ip(conn)
+    base = %{remote_ip: remote_ip}
+
+    case extract_token(conn) do
+      {:ok, source, token} ->
+        resolve_token_context(base, remote_ip, source, token)
+
+      :error ->
+        base
+    end
+  end
+
+  defp csrf_safe?(conn) do
+    not cross_site_fetch?(conn) and valid_request_content_type?(conn)
+  end
+
+  defp cross_site_fetch?(conn) do
+    case get_req_header(conn, "sec-fetch-site") do
+      ["cross-site"] -> true
+      _ -> false
+    end
+  end
+
+  defp valid_request_content_type?(%{method: "GET"}), do: true
+
+  defp valid_request_content_type?(conn) do
+    case get_req_header(conn, "content-type") do
+      [content_type | _] ->
+        content_type
+        |> String.downcase()
+        |> String.starts_with?("application/json")
+
+      [] ->
+        false
+    end
+  end
+
+  defp resolve_token_context(base, remote_ip, source, token) do
+    if invalid_token_blocked?(remote_ip) do
+      base
+      |> Map.put(:auth_error, :rate_limited)
+      |> maybe_clear_cookie(source)
+    else
+      case Accounts.get_user_by_session_token(token) do
+        nil ->
+          auth_error = record_invalid_token_attempt(remote_ip)
+
+          base
+          |> Map.put(:auth_error, auth_error)
+          |> maybe_clear_cookie(source)
+
+        user ->
+          Map.merge(base, %{current_user: user, token: token})
+      end
+    end
+  end
+
+  defp maybe_clear_cookie(context, :cookie) do
+    if Config.cookies_enabled?() do
+      Map.put(context, :auth_cookie, :delete)
+    else
+      context
+    end
+  end
+
+  defp maybe_clear_cookie(context, _source), do: context
+
+<%= if @rate_limit do %>  defp invalid_token_blocked?(remote_ip) do
+    if Config.rate_limit_enabled?() do
+      RateLimiter.blocked?(
+        {:invalid_token, remote_ip},
+        Config.rate_limit_invalid_token_max_requests(),
+        Config.rate_limit_window_seconds()
+      )
+    else
+      false
+    end
+  end
+
+  defp record_invalid_token_attempt(remote_ip) do
+    if Config.rate_limit_enabled?() do
+      case RateLimiter.check_rate(
+             {:invalid_token, remote_ip},
+             Config.rate_limit_invalid_token_max_requests(),
+             Config.rate_limit_window_seconds()
+           ) do
+        :ok -> :invalid_token
+        {:error, :rate_limited} -> :rate_limited
+      end
+    else
+      :invalid_token
+    end
+  end
+<% else %>  defp invalid_token_blocked?(_remote_ip), do: false
+  defp record_invalid_token_attempt(_remote_ip), do: :invalid_token
+<% end %>
+  defp extract_token(conn) do
+    case Config.transport() do
+      :bearer -> extract_bearer_token(conn)
+      :cookie -> extract_cookie_token(conn)
+      :both -> extract_bearer_token(conn) |> fallback_to_cookie(conn)
+    end
+  end
+
+  defp fallback_to_cookie({:ok, _, _} = result, _conn), do: result
+  defp fallback_to_cookie(:error, conn), do: extract_cookie_token(conn)
+
+  defp extract_bearer_token(conn) do
+    case get_req_header(conn, "authorization") do
+      ["Bearer " <> token] when byte_size(token) > 0 -> {:ok, :bearer, token}
+      _ -> :error
+    end
+  end
+
+  defp extract_cookie_token(conn) do
+    case Map.get(conn.cookies, Config.cookie_name()) do
+      token when is_binary(token) and byte_size(token) > 0 -> {:ok, :cookie, token}
+      _ -> :error
+    end
+  end
+
+  defp extract_remote_ip(conn) do
+    if Config.trust_proxy?() do
+      case get_req_header(conn, "x-forwarded-for") do
+        [forwarded | _] ->
+          forwarded |> String.split(",") |> List.last() |> String.trim()
+
+        [] ->
+          format_peer_ip(conn)
+      end
+    else
+      format_peer_ip(conn)
+    end
+  end
+
+  defp format_peer_ip(conn) do
+    conn.remote_ip |> :inet.ntoa() |> to_string()
+  end
+end

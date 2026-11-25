@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Configurable authentication transport via `--auth-transport bearer|cookie|both` (default: `both`), including HttpOnly/SameSite cookie support via Absinthe `before_send` and `Middleware.AuthCookie`.
+- Configurable session caching via `--cache ets|cachex|none` (default: `ets`) with `@behaviour SessionCache`, zero-dependency ETS adapter with TTL cleanup, Cachex adapter, and automatic invalidation on `sign_out`, `sign_out_all`, role updates, user deletion, and password/email changes.
+- Built-in ETS rate limiting (`--rate-limit` / `--no-rate-limit`) for `sign_in`, `sign_up`, and invalid session tokens (`RateLimiter.blocked?/3`), configurable via `trust_proxy` and `rate_limit`.
+- Configurable cookie CSRF checks (`csrf_protection: true`), GraphQL batch size limit (`max_batch_size: 1`), `secure: config_env() == :prod` cookie default, GraphQL query complexity limit (`max_complexity: 200`), and `/graphiql` gated behind `:dev_routes`.
+- In-memory token format validation before hitting cache or database, distinct `:invalid_token` / `:rate_limited` errors in auth middleware, and automatic cleanup of invalid/expired session cookies.
+- Centralized runtime auth configuration (`MyApp.Auth.Config`) injected into `config/config.exs` and supervision tree children injected into `application.ex`.
+- `sign_out_all` GraphQL mutation to revoke all active sessions across devices.
+- Live runtime unit tests for generated `Auth.Config`, `SessionCache.ETS`, and `RateLimiter` modules.
+- End-to-end regression suite (`scripts/e2e_regression.sh`) and CI `e2e` matrix verifying Elixir 1.16–1.18 and Phoenix 1.7–1.8 against PostgreSQL 16.
+
+### Changed
+- Migrated all code generators to EEx templates under `priv/templates/` (bundled in Hex package).
+- Resolved `current_user` once in `SetCurrentUser` plug (cache → DB) instead of re-querying in every middleware and resolver.
+- Hashed session tokens with SHA-256 before storing them in `users_tokens`.
+
+### Fixed
+- Separated admin role updates into `User.role_changeset/2` instead of casting `:is_admin` in `User.registration_changeset/3`.
+- Protected `me`, `sign_out`, and `sign_out_all` with `Middleware.Authenticate`.
+- Added missing mailer functions to `UserNotifier`.
+
 ## [0.1.4] - 2026-11-23
 
 ### Added
